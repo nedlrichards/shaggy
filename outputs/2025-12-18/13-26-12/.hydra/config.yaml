@@ -1,0 +1,16 @@
+global:
+  network: local
+acoustic_src:
+  sample_rate: 48000
+  channels: 2
+  format: S32LE
+  device_id: Scarlett 2i2
+mic_array:
+  spacing: 0.225
+  grid_positions:
+  - - 0
+    - 0
+    - 0
+  - - 0
+    - 0
+    - 1

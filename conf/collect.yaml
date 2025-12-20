@@ -1,0 +1,4 @@
+defaults:
+  - global: default
+  - acoustic_src: test_src
+  - mic_array: two_mics

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package shaggy;
+
+message Command {
+  optional string command = 1;
+  optional bool ack = 2;
+  optional string config = 3;
+}

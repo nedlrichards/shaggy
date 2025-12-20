@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package shaggy;
+
+message Samples {
+  optional int32 frame_number = 1;
+  optional int32 num_samples_0 = 4;
+  optional int32 num_channels_1 = 5;
+  optional bytes samples = 8;
+}

@@ -1,0 +1,3 @@
+defaults:
+  - acoustic_src: test_src
+  - stft: default

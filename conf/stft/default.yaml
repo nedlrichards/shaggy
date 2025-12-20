@@ -1,0 +1,9 @@
+_target_: shaggy.signal.short_time_fft.ShortTimeFFT
+sample_rate: ${acoustic_src.sample_rate}
+window_length: 12000
+stride_length: 6000
+window_spec: "HAMMING"
+scaling_spec: "psd"
+
+defaults:
+  - _self_

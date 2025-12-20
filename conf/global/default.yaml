@@ -1,0 +1,4 @@
+network: "external"
+
+defaults:
+  - _self_

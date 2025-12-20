@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package shaggy;
+
+message Detections {
+  optional int32 frame_number = 1;
+  optional float publish_rate = 3;
+  optional int32 num_beams = 4;
+  optional int32 num_times = 5;
+  optional int32 num_angles = 6;
+  repeated float samples = 7;
+  repeated float angles = 8;
+}
