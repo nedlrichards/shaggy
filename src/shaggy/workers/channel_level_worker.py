@@ -4,9 +4,10 @@ from PySide6.QtCore import QObject, Signal, Slot
 import zmq
 
 from shaggy.transport import library
+from shaggy.blocks import channel_levels
 
 
-class GStreamerWorker(QObject):
+class ChannelLevelWorker(QObject):
     message_received = Signal(bytes)
 
     def __init__(self, address: str):
@@ -18,7 +19,7 @@ class GStreamerWorker(QObject):
         """Runs inside the QThread."""
         socket = context.socket(zmq.SUB)
         socket.connect(self.endpoint)
-        socket.setsockopt(zmq.SUBSCRIBE, b"gstreamer-src")
+        socket.setsockopt(zmq.SUBSCRIBE, channel_levels.BLOCK_NAME)
 
         poller = zmq.Poller()
         poller.register(socket, zmq.POLLIN)
