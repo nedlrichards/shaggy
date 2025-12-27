@@ -14,7 +14,6 @@ class GStreamerWorker(QObject):
         self.sub_socket = library.get_bridge_connection(address)
         self._running = False
 
-    @Slot()
     def start(self):
         """Runs inside the QThread."""
         socket = context.socket(zmq.SUB)
