@@ -27,9 +27,9 @@ class ShortTimeFFTConfig:
             "density" scales to a power spectral density.
     """
 
-    window_length: Annotated[int, Field(gt=1)]
-    stride_length: Annotated[int, Field(gt=1)]
-    sample_rate: Annotated[int, Field(gt=0)] | None
+    window_length: Annotated[int, Field(gt=0)]
+    stride_length: Annotated[int, Field(gt=0)]
+    sample_rate: Annotated[int, Field(gt=0)]
     window_spec: str = "HAMMING"
     mfft: Optional[int] = None
     scaling_spec: Annotated[str, Literal["magnitude", "psd"]] = "magnitude"
@@ -88,23 +88,15 @@ class ShortTimeFFT(torch.nn.Module):
         self.unprocessed_samples = None
 
     @classmethod
-    def from_cfg(
-        cls,
-        window_length: int,
-        stride_length: int,
-        sample_rate: int,
-        window_spec: str,
-        mfft: Optional[int] = None,
-        scaling_spec: str = "magnitude",
-    ) -> Self:
+    def from_cfg(cls, cfg) -> Self:
         """Initilize class instance from keywords."""
         stft_cfg = ShortTimeFFTConfig(
-                window_length=window_length,
-                stride_length=stride_length,
-                sample_rate=sample_rate,
-                window_spec=window_spec,
-                mfft=mfft,
-                scaling_spec=scaling_spec,
+                window_length=cfg['stft']['window_length'],
+                stride_length=cfg['stft']['stride_length'],
+                sample_rate=cfg['gstreamer_src']['sample_rate'],
+                window_spec=cfg['stft']['window_spec'],
+                mfft=cfg['stft'].get('mfft'),
+                scaling_spec=cfg['stft']['scaling_spec'],
                 )
         return cls(stft_cfg)
 

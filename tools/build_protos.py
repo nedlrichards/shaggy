@@ -11,6 +11,7 @@ proto_files = [
     "stft.proto",
     "detections.proto",
     "command.proto",
+    "channel_levels.proto",
 ]
 
 for proto in proto_files:

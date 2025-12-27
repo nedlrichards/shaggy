@@ -5,5 +5,7 @@ package shaggy;
 message Command {
   optional string command = 1;
   optional bool ack = 2;
-  optional string config = 3;
+  optional string block_name = 3;
+  optional string thread_id = 4;
+  optional string config = 5;
 }

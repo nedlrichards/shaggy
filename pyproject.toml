@@ -25,3 +25,7 @@ packages = ["shaggy"]
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8.0"]
 build-backend = "uv_build"
+
+[project.scripts]
+camera="shaggy.bin.camera:my_app"
+controller="shaggy.bin.controller:my_app"

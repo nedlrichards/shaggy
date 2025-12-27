@@ -13,8 +13,8 @@ from shaggy.proto.samples_pb2 import Samples
 @dataclass
 class STFTBufferConfig:
     """Definition of kernel transform."""
-    window_length: Annotated[int, Field(gt=1)]
-    stride_length: Annotated[int, Field(gt=1)]
+    window_length: Annotated[int, Field(gt=0)]
+    stride_length: Annotated[int, Field(gt=0)]
     device: Literal["cpu", "cuda"] = "cpu"
 
     def __post_init__(self) -> Self:
@@ -35,15 +35,15 @@ class STFTBuffer():
         self.dtype = np.float32
 
     @classmethod
-    def from_cfg(cls, window_length: int, stride_length: int,) -> Self:
+    def from_cfg(cls, cfg) -> Self:
         """Initilize class instance from keywords."""
         stft_kernel_config = STFTBufferConfig(
-                window_length=window_length,
-                stride_length=stride_length,
+                window_length=cfg['stft']['window_length'],
+                stride_length=cfg['stft']['stride_length'],
                 )
         return cls(stft_kernel_config)
 
-    def __call__(self, msg: bytes) -> torch.Tensor:
+    def __call__(self, samples_proto: bytes) -> torch.Tensor:
         """Stride data to create kernels.
         Args:
             sample_proto: Sample protobuf string.
@@ -51,17 +51,18 @@ class STFTBuffer():
         Returns:
             kernels: (num_kernels, ..., window_length).
         """
-        samples = Samples()
-        samples.ParseFromString(msg)
+        msg = Samples()
+        msg.ParseFromString(samples_proto)
 
-        num_channels = samples.num_channels_1
-        self.buffer += samples.samples
-
+        num_channels = msg.num_channels_1
+        sample_buffer = msg.samples
         sample_stride = num_channels * self.sample_width
+        self.buffer += sample_buffer
         num_samples = len(self.buffer) // sample_stride
 
         if num_samples < self.window_length:
             return
+
 
         num_buffers = 1 + (num_samples - self.window_length) // self.stride_length
         num_excess = (num_samples - self.window_length) % self.stride_length
