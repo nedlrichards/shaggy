@@ -7,7 +7,7 @@ from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
 
 
-class CommandWorker(QObject):
+class CommandDispach(QObject):
     """Bridge Qt slot calls into camera daemon command messages."""
 
     def __init__(self, address: str = None, context: zmq.Context = None):
