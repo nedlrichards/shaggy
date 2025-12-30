@@ -30,29 +30,38 @@ class Heartbeat:
         )
         self.block.parse_sub = self.parse_sub
         self.block.parse_control = self.parse_control
-        self.block.shutdown = self.shutdown
+        self.block.startup_hook = self.startup_hook
+        self.block.shutdown_hook = self.shutdown_hook
 
         self.num_misses = 0
 
-        self._running = False
         self._last_ack_time = time.monotonic()
 
-    def startup(self, poller):
+    def run(self):
+        self.block.run()
+
+    def startup_hook(self, poller):
         self.heartbeat_thread.start()
 
-    def shutdown(self):
+    def shutdown_hook(self):
         self.heartbeat_src.shutdown()
         self.heartbeat_thread.join()
 
     def parse_sub(self, sub_id, topic, timestamp_ns, message):
         self.num_misses += 1
         if self.num_misses > HEARTBEAT_MAX_MISSES:
-            print("hello")
+            shutdown = Command()
+            shutdown.command = "shutdown"
+            shutdown.block_name = BLOCK_NAME
+            shutdown.thread_id = self.thread_id
+            payload = shutdown.SerializeToString()
+            self.block.control_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+            self.block.control_socket.send(payload)
 
     def parse_control(self, timestamp_ns, message):
         command = Command()
         command.ParseFromString(message)
         if command.command == "shutdown":
-            self._running = False
+            self.block.shutdown()
         if command.command == BLOCK_NAME:
             self.num_misses = 0

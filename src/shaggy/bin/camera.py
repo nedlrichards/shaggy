@@ -1,20 +1,14 @@
 #!/usr/bin/env -S uv run
 
-import signal
-import sys
 import threading
 import time
 
-from contextlib import contextmanager, ExitStack
-
 import click
-import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 import zmq
 
 from shaggy.proto.command_pb2 import Command
 from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft
-from shaggy.workers.command_handler import CommandHandler
 from shaggy.workers.edge_bridge import EdgeBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
@@ -24,9 +18,10 @@ from shaggy.transport.thread_id_generator import ThreadIDGenerator
 @click.option('--local', 'address_type', flag_value='local')
 def my_app(address_type) -> None:
     address = library.get_address(address_type)
-    command_handler = command_handler.CommandHandler(address)
-    edge_bridge = edge_bridge.EdgeBridge(address)
+    edge_bridge = EdgeBridge(address)
     thread_id_generator = ThreadIDGenerator()
+    command_socket = edge_bridge.context.socket(zmq.PAIR)
+    command_socket.bind(library.get_command_connection(address))
 
     stft_cfg = {
             'window_length': 12000,
@@ -36,30 +31,36 @@ def my_app(address_type) -> None:
             }
     cfg = {'gstreamer_src': {'sample_rate': 48000, 'channels': 2}, 'stft': stft_cfg}
 
+    edge_bridge_thread = threading.Thread(target=edge_bridge.run)
+    edge_bridge_thread.start()
+
     command = Command()
     command.command = 'startup'
     command.thread_id = thread_id_generator()
     command.block_name = heartbeat.BLOCK_NAME
     command.config = OmegaConf.to_yaml(OmegaConf.create(cfg))
 
-    heartbeat_id = edge_bridge.startup(command)
+    command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+    command_socket.send(command.SerializeToString())
 
     command.thread_id = thread_id_generator()
     command.block_name = gstreamer_src.BLOCK_NAME
 
-    gstreamer_src_id = edge_bridge.startup(command)
+    command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+    command_socket.send(command.SerializeToString())
 
     command.thread_id = thread_id_generator()
     command.block_name = channel_levels.BLOCK_NAME
 
-    channel_levels_id = edge_bridge.startup(command)
+    command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+    command_socket.send(command.SerializeToString())
 
     command.thread_id = thread_id_generator()
     command.block_name = short_time_fft.BLOCK_NAME
 
-    short_time_fft_id = edge_bridge.startup(command)
+    command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+    command_socket.send(command.SerializeToString())
 
-    edge_bridge.run()
 
 if __name__ == "__main__":
     my_app()

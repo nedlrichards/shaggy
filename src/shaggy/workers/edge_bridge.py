@@ -1,9 +1,8 @@
-import sys
-import time
-
+from omegaconf import OmegaConf
 import zmq
 
 from shaggy.transport import library
+from shaggy.proto.command_pb2 import Command
 from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft
 from shaggy.workers.command_handler import CommandHandler
 
@@ -15,12 +14,20 @@ class EdgeBridge:
     """ZMQ bridge that runs on the device side and manages block threads."""
 
     def __init__(self, address, context: zmq.Context = None):
+        self.address = address
         self.context = context or zmq.Context.instance()
         self.command_socket = self.context.socket(zmq.PAIR)
         self.frontend = self.context.socket(zmq.SUB)
         self.backend = self.context.socket(zmq.PUB)
         self._running = False
         self.command_handler = CommandHandler(address, self.context)
+        self._poller = None
+        self._command_pair_sockets = set()
+
+        self.heartbeat_id = None
+        self.gstreamer_src_id = None
+        self.channel_levels_id = None
+        self.short_time_fft_id = None
 
     def run(self):
 
@@ -28,14 +35,14 @@ class EdgeBridge:
         self.frontend.bind(library.FRONTEND_ADDRESS)
         self.backend.connect(library.get_bridge_connection(self.address))
 
-        poller = zmq.Poller()
-        poller.register(command_handler.command_socket, zmq.POLLIN)
-        poller.register(command_handler.frontend, zmq.POLLIN)
+        self._poller = zmq.Poller()
+        self._poller.register(self.command_socket, zmq.POLLIN)
+        self._poller.register(self.frontend, zmq.POLLIN)
 
         self._running = True
 
         while self._running:
-            socks = dict(poller.poll())
+            socks = dict(self._poller.poll())
             if socks.get(self.command_socket) == zmq.POLLIN:
                 timestamp, message = self.command_socket.recv_multipart()
                 command = Command()
@@ -44,32 +51,46 @@ class EdgeBridge:
                     self.startup(command)
                 else:
                     self.shutdown()
-                break
             if socks.get(self.frontend) == zmq.POLLIN:
                 topic, timestamp, msg = self.frontend.recv_multipart()
                 if topic in TRANSPORT_TOPICS:
                     self.backend.send_multipart((topic, timestamp, msg))
+            for pair_socket in self._command_pair_sockets:
+                if socks.get(pair_socket) == zmq.POLLIN:
+                    timestamp, message = pair_socket.recv_multipart()
+                    command = Command()
+                    command.ParseFromString(message)
+                    if command.command == "shutdown":
+                        self.shutdown()
+                        break
 
     def startup(self, command):
         block_socket = library.get_block_socket(command.block_name, command.thread_id)
+        cfg = OmegaConf.create(command.config)
 
         if command.block_name == heartbeat.BLOCK_NAME:
-            thread_id = self.command_handler.start_heartbeat(command.thread_id)
+            thread_name = self.command_handler.start_heartbeat(command.thread_id)
+            self.heartbeat_id = thread_name
         elif command.block_name == gstreamer_src.BLOCK_NAME:
-            thread_id = self.command_handler.start_gstreamer_src(command.config, command.thread_id)
+            thread_name = self.command_handler.start_gstreamer_src(cfg, command.thread_id)
+            self.gstreamer_src_id = thread_name
         elif command.block_name == channel_levels.BLOCK_NAME:
-            thread_id = self.command_handler.start_channel_levels(self.gstreamer_src_id, command.config, command.thread_id)
+            thread_name = self.command_handler.start_channel_levels(self.gstreamer_src_id, cfg, command.thread_id)
+            self.channel_levels_id = thread_name
         elif command.block_name == short_time_fft.BLOCK_NAME:
-            thread_id = self.command_handler.start_short_time_fft(self.gstreamer_src_id, command.config, command.thread_id)
+            thread_name = self.command_handler.start_short_time_fft(self.gstreamer_src_id, cfg, command.thread_id)
+            self.short_time_fft_id = thread_name
+
+        pair_socket = self.command_handler.command_pairs[thread_name]
+        self._poller.register(pair_socket, zmq.POLLIN)
+        self._command_pair_sockets.add(pair_socket)
+
         self.frontend.connect(block_socket)
         self.frontend.setsockopt_string(zmq.SUBSCRIBE, command.block_name)
-
-        return thread_id
 
     def shutdown(self, thread_name = None):
         if thread_name is not None:
             # TODO: allow for the shutdown of specific threads
             print('not supported')
         self._running = False
-
-
+        self.command_handler.shutdown()

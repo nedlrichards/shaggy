@@ -1,14 +1,18 @@
 import threading
+import time
+
+from shaggy.proto.command_pb2 import Command
 
 from shaggy.blocks import channel_levels, gstreamer_src, heartbeat, short_time_fft
 from shaggy.transport import library
+
+import zmq
 
 class CommandHandler:
 
     def __init__(self, address, context: zmq.Context = None):
         self.context = context or zmq.Context.instance()
         self.address = address
-        self.handler = CommandHandler(self.context)
         self.command_pairs = {}
         self.block_threads = {}
 
@@ -30,7 +34,7 @@ class CommandHandler:
 
     def _start_block(self, instance, block_name, thread_id):
         thread_name = library.get_thread_name(block_name, thread_id)
-        thread = threading.Thread(target=thread_target)
+        thread = threading.Thread(target=instance.run)
         self.block_threads[thread_name] = thread
 
         command = self.context.socket(zmq.PAIR)
@@ -48,12 +52,19 @@ class CommandHandler:
             command_pairs = self.command_pairs
             block_threads = self.block_threads
 
+        # TODO remove pair_socket and block_threads from self dictionaries.
+
         for id, pair_socket in command_pairs.items():
-            pair_socket.send_string("shutdown", zmq.SNDMORE)
+            thread_info = id.split('-')
+            command = Command()
+            command.command = 'shutdown'
+            command.block_name = ('-').join(thread_info[:-1])
+            command.thread_id = thread_info[-1]
+            msg = command.SerializeToString()
+
             pair_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
-            pair_socket.send_string("")
-            del self.command_pairs[id]
+            pair_socket.send(msg)
 
         for id, block_thread in block_threads.items():
+            print(f"{id} shutdown command")
             block_thread.join()
-            del self.block_thread[id]

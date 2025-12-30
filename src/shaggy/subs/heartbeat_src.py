@@ -5,7 +5,7 @@ import zmq
 
 from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
-from shaggy.blocks.heartbeat import Heartbeat
+from shaggy.blocks import heartbeat
 
 class HeartbeatSrc:
     def __init__(self, thread_id: str, context: zmq.Context = None, interval_s: float = 1.0):
@@ -28,9 +28,7 @@ class HeartbeatSrc:
             timestamp_ns = time.monotonic_ns()
             self.pub_socket.send_string(f"{timestamp_ns}", zmq.SNDMORE)
             self.pub_socket.send(payload)
-
-            self._running.wait(self.interval_s)
-
+            time.sleep(self.interval_s)
         self.pub_socket.close(0)
 
     def _compose_payload(self):

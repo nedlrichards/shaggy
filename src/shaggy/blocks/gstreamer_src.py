@@ -71,9 +71,9 @@ class GStreamerSrc:
         try:
             yield pipeline
         finally:
+            pipeline.set_state(Gst.State.NULL)
             self.pub_socket.close(0)
             self.control_socket.close(0)
-            pipeline.set_state(Gst.State.NULL)
 
     def run(self):
         with self.start_audio() as pipeline:

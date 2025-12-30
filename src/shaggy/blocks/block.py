@@ -33,7 +33,7 @@ class Block:
                 timestamp_ns, message = self.control_socket.recv_multipart()
                 self.parse_control(int(timestamp_ns), message) 
 
-        for _, sub_socket in self.block.sub_sockets.items():
+        for _, sub_socket in self.sub_sockets.items():
             sub_socket.close(0)
         self.pub_socket.close(0)
         self.control_socket.close(0)
