@@ -35,8 +35,6 @@ class Heartbeat:
 
         self.num_misses = 0
 
-        self._last_ack_time = time.monotonic()
-
     def run(self):
         self.block.run()
 
