@@ -1,11 +1,13 @@
+import time
+
+import zmq
+
 from shaggy.blocks.block import Block
 from shaggy.blocks import gstreamer_src
 from shaggy.subs import channel_levels
 from shaggy.proto.samples_pb2 import Samples
-from shaggy.proto.channel_levels_pb2 import ChannelLevels
+from shaggy.proto import channel_levels_pb2
 from shaggy.transport import library
-
-import zmq
 
 BLOCK_NAME = "channel-levels"
 
@@ -34,25 +36,23 @@ class ChannelLevels:
     def run(self):
         self.block.run()
 
-    def parse_sub(self, sub_id, sub_socket):
-        topic, timestamp_ns, message = sub_socket.recv_multipart()
+    def parse_sub(self, sub_id, topic, timestamp_ns, message):
         samples = Samples()
-        samples.ParseFromString(samples)
-        levels_dB = self.channel_levels(samples.samples)
-        channel_levels = ChannelLevels()
+        levels_dB = self.channel_levels(message)
+        if levels_dB is None:
+            return
+        samples.ParseFromString(message)
+        channel_levels = channel_levels_pb2.ChannelLevels()
         channel_levels.frame_number = self.frame_number
-        channel_levels.num_channels_0 = Samples.num_channels_1
-        channel_levels.levels = levels_dB.tobytes()
+        channel_levels.num_channels_0 = samples.num_channels_1
+        channel_levels.levels = levels_dB.numpy().tobytes()
         msg = channel_levels.SerializeToString()
 
         self.block.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
-        timestamp_ns = int(time.time() * 1e9)
-        timestamp_bytes = timestamp_ns.to_bytes(8, "little")
-        self.block.pub_socket.send(timestamp_bytes, zmq.SNDMORE)
+        self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         self.block.pub_socket.send_multipart([msg])
 
         self.frame_number += 1
 
-
-    def parse_control(self, message):
+    def parse_control(self, timestamp_ns, message):
         self.block.shutdown()

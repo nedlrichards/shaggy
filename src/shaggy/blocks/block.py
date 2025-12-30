@@ -1,3 +1,4 @@
+import threading
 import zmq
 
 from shaggy.transport import library
@@ -11,13 +12,34 @@ class Block:
         self.sub_addresses = sub_addresses
         self.pub_address = pub_address
 
-        self._running = False
+        self._running = threading.Event()
 
         self.sub_sockets = None
         self.pub_socket = None
         self.control_socket = None
 
-    def setup_sockets(self):
+    def run(self):
+        poller = self._setup_sockets()
+        self.startup_hook(poller)
+
+        self._running.set()
+        while self._running.is_set():
+            socks = dict(poller.poll())
+            for sub_id, sub_socket in self.sub_sockets.items():
+                if socks.get(sub_socket) == zmq.POLLIN:
+                    topic, timestamp_ns, message = sub_socket.recv_multipart()
+                    self.parse_sub(sub_id, topic, int(timestamp_ns), message)
+            if socks.get(self.control_socket) == zmq.POLLIN:
+                timestamp_ns, message = self.control_socket.recv_multipart()
+                self.parse_control(int(timestamp_ns), message) 
+
+        for _, sub_socket in self.sub_sockets.items():
+            sub_socket.close(0)
+        self.pub_socket.close(0)
+        self.control_socket.close(0)
+        self.shutdown_hook()
+
+    def _setup_sockets(self):
         self.sub_sockets = {}
         for id, address in self.sub_addresses.items():
             socket = self.context.socket(zmq.SUB)
@@ -31,33 +53,23 @@ class Block:
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.connect(library.get_control_socket(self.thread_id))
 
-    def run(self):
-        self.setup_sockets()
         poller = zmq.Poller()
         for sub_id, sub_socket in self.sub_sockets.items():
             poller.register(sub_socket, zmq.POLLIN)
         poller.register(self.control_socket, zmq.POLLIN)
+        return poller
 
-        self._running = True
-        while self._running:
-            socks = dict(poller.poll())
-            for sub_id, sub_socket in self.sub_sockets.items():
-                if socks.get(sub_socket) == zmq.POLLIN:
-                    self.parse_sub(sub_id, sub_socket)
-            if socks.get(self.control_socket) == zmq.POLLIN:
-                message = self.control_socket.recv()
-                self.parse_control(message) 
-
-        for _, sub_socket in self.sub_sockets.items():
-            sub_socket.close()
-        self.pub_socket.close()
-        self.control_socket.close()
-
-    def parse_sub(self, sub_id, sub_socket):
+    def parse_sub(self, sub_id, topic, timestamp_ns, message):
         pass
 
-    def parse_control(self, message):
+    def parse_control(self, timestamp_ns, message):
+        pass
+
+    def startup_hook(self, poller: zmq.Poller):
+        pass
+
+    def shutdown_hook(self):
         pass
 
     def shutdown(self):
-        self._running = False
+        self._running.clear()

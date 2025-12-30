@@ -41,22 +41,20 @@ class ShortTimeFFT:
                 )
         self.block.parse_sub = self.parse_sub
         self.block.parse_control = self.parse_control
-
         self.frame_number = 0
 
     def run(self):
         self.frame_number = 0
         self.block.run()
 
-    def parse_sub(self, sub_id, sub_socket):
-        topic, timestamp_ns, message = sub_socket.recv_multipart()
+    def parse_sub(self, sub_id, topic, timestamp_ns, message):
         samples = self.short_time_fft_buffer(message)
         if samples is None:
             return
         stft_samples = self.short_time_fft(samples)
         self._publish_stft(stft_samples)
 
-    def parse_control(self, message):
+    def parse_control(self, timestamp_ns, message):
         self.block.shutdown()
 
     def _publish_stft(self, stft_samples):
