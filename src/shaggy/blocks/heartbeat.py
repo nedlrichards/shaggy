@@ -20,7 +20,7 @@ class Heartbeat:
         self.heartbeat_thread = threading.Thread(target=self.heartbeat_src.run)
 
         self.sub_addresses = {
-            BLOCK_NAME: library.get_block_socket(BLOCK_NAME, thread_id)
+            BLOCK_NAME: library.get_block_socket(heartbeat_src.BLOCK_NAME, thread_id)
         }
         self.block = Block(
             thread_id,
@@ -46,6 +46,17 @@ class Heartbeat:
         self.heartbeat_thread.join()
 
     def parse_sub(self, sub_id, topic, timestamp_ns, message):
+        command = Command()
+        command.command = BLOCK_NAME
+        command.ack = False
+        command.block_name = BLOCK_NAME
+        command.thread_id = self.thread_id
+        payload = command.SerializeToString()
+
+        self.block.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
+        self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+        self.block.pub_socket.send(payload)
+
         self.num_misses += 1
         if self.num_misses > HEARTBEAT_MAX_MISSES:
             shutdown = Command()

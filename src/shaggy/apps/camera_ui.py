@@ -1,14 +1,20 @@
 import sys
-from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QWidget, QVBoxLayout
-from PySide6.QtCore import QThread, QObject, Signal
 
+import click
+from PySide6.QtWidgets import QApplication, QMainWindow
+
+from omegaconf import OmegaConf
+from shaggy.proto.command_pb2 import Command
 from shaggy.widgets.heartbeat import HeartbeatStatus
+from shaggy.workers.host_bridge import HostBridge
+from shaggy.transport import library
+from shaggy.transport.thread_id_generator import ThreadIDGenerator
+from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft
 
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, address):
         super().__init__()
 
         self.setGeometry(100, 100, 500, 300)
@@ -25,7 +31,42 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage('Ready', 5000)
 
         # add a permanent widget to the status bar
-        self.heartbeat_status = HeartbeatStatus()
+        host_bridge = HostBridge(address)
+        thread_id_generator = ThreadIDGenerator()
+
+        stft_cfg = {
+                'window_length': 12000,
+                'stride_length': 6000,
+                'window_spec': "HAMMING",
+                'scaling_spec': "psd", 
+                }
+        cfg = {'gstreamer_src': {'sample_rate': 48000, 'channels': 2}, 'stft': stft_cfg}
+
+        self.heartbeat_status = HeartbeatStatus(address, host_bridge)
+
+        command = Command()
+        command.command = 'startup'
+        command.thread_id = thread_id_generator()
+        command.block_name = heartbeat.BLOCK_NAME
+        command.config = OmegaConf.to_yaml(OmegaConf.create(cfg))
+
+        host_bridge.send_command(command)
+
+        command.thread_id = thread_id_generator()
+        command.block_name = gstreamer_src.BLOCK_NAME
+
+        host_bridge.send_command(command)
+
+        command.thread_id = thread_id_generator()
+        command.block_name = channel_levels.BLOCK_NAME
+
+        host_bridge.send_command(command)
+
+        command.thread_id = thread_id_generator()
+        command.block_name = short_time_fft.BLOCK_NAME
+
+        host_bridge.send_command(command)
+
         self.status_bar.addPermanentWidget(self.heartbeat_status)
         self.show()
 
@@ -34,7 +75,15 @@ class MainWindow(QMainWindow):
         title = f"{filename if filename else 'Untitled'} - {self.title}"
         self.setWindowTitle(title)
 
-if __name__ == '__main__':
+@click.command()
+@click.option('--external', 'address_type', flag_value='external', default='external')
+@click.option('--local', 'address_type', flag_value='local')
+def my_app(address_type) -> None:
+    address = library.get_address(address_type)
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = MainWindow(address)
     sys.exit(app.exec())
+
+
+if __name__ == '__main__':
+    my_app()

@@ -22,7 +22,6 @@ class EdgeBridge:
         self._running = False
         self.command_handler = CommandHandler(address, self.context)
         self._poller = None
-        self._command_pair_sockets = set()
 
         self.heartbeat_id = None
         self.gstreamer_src_id = None
@@ -31,9 +30,9 @@ class EdgeBridge:
 
     def run(self):
 
-        self.command_socket.connect(library.get_command_connection(self.address))
+        self.command_socket.bind(library.get_command_connection(self.address))
         self.frontend.bind(library.FRONTEND_ADDRESS)
-        self.backend.connect(library.get_bridge_connection(self.address))
+        self.backend.bind(library.get_bridge_connection(self.address))
 
         self._poller = zmq.Poller()
         self._poller.register(self.command_socket, zmq.POLLIN)
@@ -49,20 +48,22 @@ class EdgeBridge:
                 command.ParseFromString(message)
                 if command.command == 'startup':
                     self.startup(command)
+                elif command.command == 'shutdown':
+                    self.shutdown(command)
                 else:
-                    self.shutdown()
+                    self.command_handler.passthrough(command)
             if socks.get(self.frontend) == zmq.POLLIN:
                 topic, timestamp, msg = self.frontend.recv_multipart()
-                if topic in TRANSPORT_TOPICS:
+                if topic.decode() in TRANSPORT_TOPICS:
                     self.backend.send_multipart((topic, timestamp, msg))
-            for pair_socket in self._command_pair_sockets:
+            for pair_socket in self.command_handler.command_pairs.values():
                 if socks.get(pair_socket) == zmq.POLLIN:
                     timestamp, message = pair_socket.recv_multipart()
                     command = Command()
                     command.ParseFromString(message)
-                    if command.command == "shutdown":
-                        self.shutdown()
-                        break
+                    print(f"Command from block: {command.command}.")
+                    if command.block_name == 'heartbeat' and command.command == 'shutdown':
+                        self.shutdown(command)
 
     def startup(self, command):
         block_socket = library.get_block_socket(command.block_name, command.thread_id)
@@ -83,14 +84,12 @@ class EdgeBridge:
 
         pair_socket = self.command_handler.command_pairs[thread_name]
         self._poller.register(pair_socket, zmq.POLLIN)
-        self._command_pair_sockets.add(pair_socket)
 
         self.frontend.connect(block_socket)
         self.frontend.setsockopt_string(zmq.SUBSCRIBE, command.block_name)
 
-    def shutdown(self, thread_name = None):
-        if thread_name is not None:
-            # TODO: allow for the shutdown of specific threads
-            print('not supported')
-        self._running = False
-        self.command_handler.shutdown()
+    def shutdown(self, command):
+        self.command_handler.shutdown(command)
+        if command.block_name is None:
+            # TODO: determine if we ever want to terminate main loop
+            self._running = False

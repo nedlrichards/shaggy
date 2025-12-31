@@ -48,7 +48,7 @@ class Block:
             self.sub_sockets[id] = socket
 
         self.pub_socket = self.context.socket(zmq.PUB)
-        self.pub_socket.connect(self.pub_address)
+        self.pub_socket.bind(self.pub_address)
 
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.connect(library.get_control_socket(self.thread_id))
