@@ -44,7 +44,15 @@ class CommandHandler:
         self.block_threads[thread_name].start()
         return thread_name
 
-    def shutdown(self, thread_name=None):
+    def passthrough(self, command: Command):
+        thread_name = library.get_thread_name(command.block_name, command.thread_id)
+        command_pair = self.command_pairs[thread_name]
+        msg = command.SerializeToString()
+        command_pair.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+        command_pair.send(msg)
+
+    def shutdown(self, command: Command):
+        thread_name = library.get_thread_name(command.block_name, command.thread_id)
         if thread_name is not None:
             command_pairs = {thread_name: self.command_pairs[thread_name]}
             block_threads = {thread_name: self.block_threads[thread_name]}
@@ -52,18 +60,21 @@ class CommandHandler:
             command_pairs = self.command_pairs
             block_threads = self.block_threads
 
-        # TODO remove pair_socket and block_threads from self dictionaries.
+        # TODO remove command_pair and block_threads from self dictionaries.
 
-        for id, pair_socket in command_pairs.items():
+        for id, command_pair in command_pairs.items():
             thread_info = id.split('-')
+            block_name = ('-').join(thread_info[:-1])
+            if block_name == heartbeat.BLOCK_NAME:
+                continue
             command = Command()
             command.command = 'shutdown'
-            command.block_name = ('-').join(thread_info[:-1])
+            command.block_name = block_name
             command.thread_id = thread_info[-1]
             msg = command.SerializeToString()
 
-            pair_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
-            pair_socket.send(msg)
+            command_pair.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+            command_pair.send(msg)
 
         for id, block_thread in block_threads.items():
             print(f"{id} shutdown command")

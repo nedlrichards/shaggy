@@ -1,3 +1,5 @@
+from typing import Optional
+
 EXTERNAL_HOST = "10.1.1.0"
 LOCAL_HOST = "127.0.0.1"
 FRONTEND_ADDRESS = 'inproc://bridge'
@@ -18,8 +20,13 @@ def get_address(address_type):
 def get_control_socket(thread_id):
     return f"inproc://control-{thread_id}"
 
-def get_thread_name(block_name, thread_id):
-    return f"{block_name}-{thread_id}"
+def get_thread_name(block_name: Optional[str], thread_id: Optional[str]):
+    if block_name is not None:
+        thread_name = f"{block_name}-{thread_id}"
+    else:
+        thread_name = None
+    return thread_name
+
 
 def get_block_socket(block_name, thread_id):
     thread_name = get_thread_name(block_name, thread_id)
