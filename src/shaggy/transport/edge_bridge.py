@@ -4,7 +4,7 @@ import zmq
 from shaggy.transport import library
 from shaggy.proto.command_pb2 import Command
 from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft
-from shaggy.workers.command_handler import CommandHandler
+from shaggy.transport.command_handler import CommandHandler
 
 TRANSPORT_TOPICS = [
         heartbeat.BLOCK_NAME,

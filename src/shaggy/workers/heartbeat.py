@@ -4,7 +4,7 @@ import zmq
 from shaggy.blocks import heartbeat
 from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
-from shaggy.workers.host_bridge import HostBridge
+from shaggy.transport.host_bridge import HostBridge
 
 
 class HeartbeatWorker(QObject):

@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from omegaconf import OmegaConf
 from shaggy.proto.command_pb2 import Command
 from shaggy.widgets.heartbeat import HeartbeatStatus
-from shaggy.workers.host_bridge import HostBridge
+from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
 from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft

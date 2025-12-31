@@ -6,7 +6,7 @@ import time
 import click
 import zmq
 
-from shaggy.workers.edge_bridge import EdgeBridge
+from shaggy.transport.edge_bridge import EdgeBridge
 from shaggy.transport import library
 
 @click.command()
