@@ -1,3 +1,5 @@
+import time
+
 from PySide6.QtCore import QObject, Signal, Slot
 import zmq
 
@@ -17,13 +19,13 @@ class HeartbeatWorker(QObject):
         address: str,
         host_bridge: HostBridge,
         context: zmq.Context = None,
-        timeout_ms: int = 3000,
+        timeout_s: float = 3.,
     ):
         super().__init__()
         self.address = address
         self.host_bridge = host_bridge
         self.context = context or zmq.Context.instance()
-        self.timeout_ms = timeout_ms
+        self.timeout_s = timeout_s
         self._running = False
 
         self.bridge_socket = self.context.socket(zmq.SUB)
@@ -36,8 +38,9 @@ class HeartbeatWorker(QObject):
         poller.register(self.bridge_socket, zmq.POLLIN)
 
         self._running = True
+        start_time = time.time()
         while self._running:
-            socks = dict(poller.poll(self.timeout_ms))
+            socks = dict(poller.poll(100))
             if socks.get(self.bridge_socket) == zmq.POLLIN:
                 topic, timestamp, message = self.bridge_socket.recv_multipart()
                 heartbeat_command = Command()
@@ -45,8 +48,10 @@ class HeartbeatWorker(QObject):
                 heartbeat_command.ack = True
                 self.host_bridge.send_command(heartbeat_command)
                 self.status.emit(True)
+                start_time = time.time()
             else:
-                self.status.emit(False)
+                if time.time() - start_time > self.timeout_s:
+                    self.status.emit(False)
 
     def shutdown(self) -> None:
         self._running = False
