@@ -6,8 +6,6 @@ import zmq
 from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
 
-BLOCK_NAME = 'heartbeat-src'
-
 class HeartbeatSrc:
     def __init__(self, thread_id: str, context: zmq.Context = None, interval_s: float = 1.0):
         self.thread_id = thread_id
@@ -18,14 +16,16 @@ class HeartbeatSrc:
 
     def setup_socket(self):
         self.pub_socket = self.context.socket(zmq.PUB)
-        self.pub_socket.bind(library.get_block_socket(BLOCK_NAME, self.thread_id))
+        self.pub_socket.bind(
+            library.get_block_socket(library.BlockName.HeartbeatSrc.value, self.thread_id)
+        )
 
     def run(self):
         self.setup_socket()
         self._running.set()
         while self._running.is_set():
             payload = self._compose_payload()
-            self.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
+            self.pub_socket.send_string(library.BlockName.HeartbeatSrc.value, zmq.SNDMORE)
             timestamp_ns = time.monotonic_ns()
             self.pub_socket.send_string(f"{timestamp_ns}", zmq.SNDMORE)
             self.pub_socket.send(payload)
@@ -34,9 +34,9 @@ class HeartbeatSrc:
 
     def _compose_payload(self):
         command = Command()
-        command.command = BLOCK_NAME
+        command.command = library.BlockName.HeartbeatSrc.value
         command.ack = False
-        command.block_name = BLOCK_NAME
+        command.block_name = library.BlockName.HeartbeatSrc.value
         command.thread_id = self.thread_id
         payload = command.SerializeToString()
         return payload

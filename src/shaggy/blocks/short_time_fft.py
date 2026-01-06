@@ -16,8 +16,6 @@ from shaggy.blocks import gstreamer_src
 from shaggy.signal.short_time_fft import ShortTimeFFT as STFT_Function
 from shaggy.transport import library
 
-BLOCK_NAME = "short-time-fft"
-
 class ShortTimeFFT:
     """Composition of buffer handling and short time FFT computation."""
     def __init__(self, cfg, gstreamer_src_id: str, thread_id: str, context: zmq.Context = None):
@@ -31,12 +29,12 @@ class ShortTimeFFT:
 
         self.gstreamer_src_id = gstreamer_src_id
         self.sub_addresses = {
-                gstreamer_src.BLOCK_NAME: f"inproc://{gstreamer_src_id}"
-                }
+            library.BlockName.GStreamerSrc.value: f"inproc://{gstreamer_src_id}"
+        }
         self.block = Block(
                 thread_id,
                 self.sub_addresses,
-                library.get_block_socket(BLOCK_NAME, thread_id),
+                library.get_block_socket(library.BlockName.ShortTimeFFT.value, thread_id),
                 self.context
                 )
         self.block.parse_sub = self.parse_sub
@@ -76,7 +74,7 @@ class ShortTimeFFT:
         msg.stft_samples = sample_buf
         msg = msg.SerializeToString()
 
-        self.block.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
+        self.block.pub_socket.send_string(library.BlockName.ShortTimeFFT.value, zmq.SNDMORE)
         timestamp_ns = int(time.time() * 1e9)
         timestamp_bytes = timestamp_ns.to_bytes(8, "little")
         self.block.pub_socket.send(timestamp_bytes, zmq.SNDMORE)

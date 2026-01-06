@@ -1,12 +1,13 @@
 from PySide6.QtWidgets import QLabel, QWidget, QHBoxLayout
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QThread, Slot
 
-from shaggy.workers.heartbeat import HeartbeatWorker
+from shaggy.workers.heartbeat import Heartbeat
 
 class HeartbeatStatus(QWidget):
-
-    def __init__(self, address, host_bridge):
+    def __init__(self, thread_id, host_bridge):
         super().__init__()
+        self.thread_id = thread_id
+        self.host_bridge = host_bridge
 
         self.heartbeat_indicator = QLabel("Heartbeat")
         self.heartbeat_indicator.setStyleSheet("""background-color: #FF0000; """)
@@ -14,14 +15,10 @@ class HeartbeatStatus(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 0, 4, 0)
         layout.addWidget(self.heartbeat_indicator)
+        self.heartbeat = Heartbeat(host_bridge, self.thread_id)
+        self.heartbeat.status.connect(self.set_heartbeat_status)
 
-        self.heartbeat_worker = HeartbeatWorker(address, host_bridge)
-        self.heartbeat_thread = QThread()
-        self.heartbeat_worker.moveToThread(self.heartbeat_thread)
-        self.heartbeat_worker.status.connect(self.set_heartbeat_status)
-        self.heartbeat_thread.started.connect(self.heartbeat_worker.start)
-        self.heartbeat_thread.start()
-
+    @Slot(bool)
     def set_heartbeat_status(self, heartbeat_status):
         if heartbeat_status:
             self.heartbeat_indicator.setStyleSheet("""background-color: #00FF00; """)

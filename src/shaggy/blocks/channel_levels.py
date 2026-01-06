@@ -9,8 +9,6 @@ from shaggy.proto.samples_pb2 import Samples
 from shaggy.proto import channel_levels_pb2
 from shaggy.transport import library
 
-BLOCK_NAME = "channel-levels"
-
 class ChannelLevels:
 
     def __init__(self, cfg, gstreamer_src_id: str, thread_id: str, context: zmq.Context = None):
@@ -19,14 +17,14 @@ class ChannelLevels:
         self.context = context
         self.gstreamer_src_id = gstreamer_src_id
         self.sub_addresses = {
-                gstreamer_src.BLOCK_NAME: f"inproc://{gstreamer_src_id}"
-                }
+            library.BlockName.GStreamerSrc.value: f"inproc://{gstreamer_src_id}"
+        }
         self.channel_levels = channel_levels.ChannelLevels.from_cfg(cfg)
 
         self.block = Block(
                 thread_id,
                 self.sub_addresses,
-                library.get_block_socket(BLOCK_NAME, thread_id),
+                library.get_block_socket(library.BlockName.ChannelLevels.value, thread_id),
                 self.context
                 )
         self.block.parse_sub = self.parse_sub
@@ -48,7 +46,7 @@ class ChannelLevels:
         channel_levels.levels = levels_dB.numpy().tobytes()
         msg = channel_levels.SerializeToString()
 
-        self.block.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
+        self.block.pub_socket.send_string(library.BlockName.ChannelLevels.value, zmq.SNDMORE)
         self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         self.block.pub_socket.send_multipart([msg])
 

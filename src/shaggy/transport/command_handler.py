@@ -18,19 +18,19 @@ class CommandHandler:
 
     def start_heartbeat(self, thread_id):
         instance = heartbeat.Heartbeat(thread_id, self.context)
-        return self._start_block(instance, heartbeat.BLOCK_NAME, thread_id)
+        return self._start_block(instance, library.BlockName.Heartbeat.value, thread_id)
 
     def start_gstreamer_src(self, cfg, thread_id):
         instance = gstreamer_src.GStreamerSrc.from_cfg(cfg, thread_id, self.context)
-        return self._start_block(instance, gstreamer_src.BLOCK_NAME, thread_id)
+        return self._start_block(instance, library.BlockName.GStreamerSrc.value, thread_id)
 
     def start_channel_levels(self, gstreamer_src_id, cfg, thread_id):
         instance = channel_levels.ChannelLevels(cfg, gstreamer_src_id, thread_id, self.context)
-        return self._start_block(instance, channel_levels.BLOCK_NAME, thread_id)
+        return self._start_block(instance, library.BlockName.ChannelLevels.value, thread_id)
 
     def start_short_time_fft(self, gstreamer_src_id, cfg, thread_id):
         instance = short_time_fft.ShortTimeFFT(cfg, gstreamer_src_id, thread_id, self.context)
-        return self._start_block(instance, short_time_fft.BLOCK_NAME, thread_id)
+        return self._start_block(instance, library.BlockName.ShortTimeFFT.value, thread_id)
 
     def _start_block(self, instance, block_name, thread_id):
         thread_name = library.get_thread_name(block_name, thread_id)
@@ -65,7 +65,7 @@ class CommandHandler:
         for id, command_pair in command_pairs.items():
             thread_info = id.split('-')
             block_name = ('-').join(thread_info[:-1])
-            if block_name == heartbeat.BLOCK_NAME:
+            if block_name == library.BlockName.Heartbeat.value:
                 continue
             command = Command()
             command.command = 'shutdown'

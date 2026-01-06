@@ -2,7 +2,6 @@ from PySide6.QtCore import QObject, Signal, Slot
 import zmq
 
 from shaggy.transport import library
-from shaggy.blocks import channel_levels
 
 
 class ChannelLevelWorker(QObject):
@@ -18,7 +17,10 @@ class ChannelLevelWorker(QObject):
 
         self.bridge_socket = self.context.socket(zmq.SUB)
         self.bridge_socket.connect(library.get_bridge_connection(self.address))
-        self.bridge_socket.setsockopt_string(zmq.SUBSCRIBE, channel_levels.BLOCK_NAME)
+        self.bridge_socket.setsockopt_string(
+            zmq.SUBSCRIBE,
+            library.BlockName.ChannelLevels.value,
+        )
 
     @Slot()
     def run(self) -> None:

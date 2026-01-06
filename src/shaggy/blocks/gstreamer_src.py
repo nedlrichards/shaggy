@@ -17,8 +17,6 @@ import zmq
 from shaggy.proto.samples_pb2 import Samples
 from shaggy.transport import library
 
-BLOCK_NAME = "gstreamer-src"
-
 class GStreamerSrc:
     """Stream audio from interface to local buffer."""
 
@@ -49,7 +47,9 @@ class GStreamerSrc:
     @contextmanager
     def start_audio(self) -> None:
         self.pub_socket = self.context.socket(zmq.PUB)
-        self.pub_socket.bind(library.get_block_socket(BLOCK_NAME, self.thread_id))
+        self.pub_socket.bind(
+            library.get_block_socket(library.BlockName.GStreamerSrc.value, self.thread_id)
+        )
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.connect(library.get_control_socket(self.thread_id))
 
@@ -104,7 +104,7 @@ class GStreamerSrc:
 
     def audio_callback(self, data) -> None:
         """Publish data from acoustic source over 0MQ."""
-        self.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
+        self.pub_socket.send_string(library.BlockName.GStreamerSrc.value, zmq.SNDMORE)
         timestamp_ns = time.monotonic_ns()
         self.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         msg = Samples()

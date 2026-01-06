@@ -1,8 +1,22 @@
+from enum import Enum
 from typing import Optional
 
 EXTERNAL_HOST = "10.1.1.0"
 LOCAL_HOST = "127.0.0.1"
 FRONTEND_ADDRESS = 'inproc://bridge'
+
+
+class BlockName(str, Enum):
+    Heartbeat = "heartbeat"
+    HeartbeatSrc = "heartbeat-src"
+    GStreamerSrc = "gstreamer-src"
+    ChannelLevels = "channel-levels"
+    ShortTimeFFT = "short-time-fft"
+
+
+TRANSPORT_TOPICS = [
+    BlockName.Heartbeat.value,
+]
 
 def get_address_from_cfg(cfg):
     address_type = cfg['global']['network']

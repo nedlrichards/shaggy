@@ -6,10 +6,10 @@ import zmq
 from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
 from shaggy.transport.host_bridge import HostBridge
-from shaggy.workers.worker import Worker
+from shaggy.transport.q_proxy import QProxy
 
 
-class Heartbeat(QObject):
+class HeartbeatWorker(QObject):
     """Listen for heartbeat PUB messages, ack, and emit timeout status."""
 
     status = Signal(bool)
@@ -24,17 +24,8 @@ class Heartbeat(QObject):
         self.host_bridge = host_bridge
         self.thread_id = thread_id
         self.timeout_s = timeout_s
-        thread_name = library.get_thread_name(
+        self.q_proxy = QProxy(
             library.BlockName.Heartbeat.value,
             self.thread_id,
+            self.host_bridge,
         )
-        self.worker = self.host_bridge.workers[thread_name]
-        self.worker.content_msg.connect(self.repeat_heartbeat)
-
-    @Slot(bytes, bytes, bytes)
-    def repeat_heartbeat(self, topic, timestamp, msg):
-        command = Command()
-        command.ParseFromString(msg)
-        command.ack = True
-        self.host_bridge.send_command(command)
-        self.status.emit(True)
