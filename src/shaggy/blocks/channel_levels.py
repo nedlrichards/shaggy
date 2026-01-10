@@ -43,7 +43,8 @@ class ChannelLevels:
         channel_levels = channel_levels_pb2.ChannelLevels()
         channel_levels.frame_number = self.frame_number
         channel_levels.num_channels_0 = samples.num_channels_1
-        channel_levels.levels = levels_dB.numpy().tobytes()
+        channel_levels.levels = levels_dB.tobytes()
+        channel_levels.thread_id = self.thread_id
         msg = channel_levels.SerializeToString()
 
         self.block.pub_socket.send_string(library.BlockName.ChannelLevels.value, zmq.SNDMORE)

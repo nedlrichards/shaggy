@@ -6,4 +6,5 @@ message ChannelLevels {
   optional int32 frame_number = 1;
   optional int32 num_channels_0 = 2;
   optional bytes levels = 3;
+  optional string thread_id = 4;
 }

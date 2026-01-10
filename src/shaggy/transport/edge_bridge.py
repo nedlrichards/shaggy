@@ -40,7 +40,7 @@ class EdgeBridge:
             socks = dict(self._poller.poll())
             if socks.get(self.frontend) == zmq.POLLIN:
                 topic, timestamp, msg = self.frontend.recv_multipart()
-                if topic.decode() in library.TRANSPORT_TOPICS:
+                if topic.decode() in library.TRANSPORT_TOPICS.keys():
                     self.backend.send_multipart((topic, timestamp, msg))
                     print(f'sending {topic}')
             elif socks.get(self.command_socket) == zmq.POLLIN:

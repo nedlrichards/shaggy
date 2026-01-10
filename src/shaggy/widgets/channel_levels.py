@@ -1,9 +1,16 @@
 import matplotlib
+import numpy as np
 from PySide6 import QtCore, QtGui
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import Slot
+from PySide6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout, QWidget
 
+from omegaconf import OmegaConf
 
-class ChannelLevel(QWidget):
+from shaggy.proto.command_pb2 import Command
+from shaggy.proto.channel_levels_pb2 import ChannelLevels
+from shaggy.transport import library
+
+class MeterPackage(QWidget):
     """Sound meter for all channels."""
 
     class LevelMeter(QWidget):
@@ -54,3 +61,49 @@ class ChannelLevel(QWidget):
         box.addWidget(self.meter)
         box.addWidget(self.label)
         self.setLayout(box)
+
+
+class AcousticChannels(QWidget):
+    def __init__(self, cfg, thread_id_generator, host_bridge):
+        super().__init__()
+        self.cfg = cfg
+        self.host_bridge = host_bridge
+
+        yaml_cfg = OmegaConf.to_yaml(cfg)
+        self.gstreamer_thread_id = thread_id_generator()
+        command = Command()
+        command.command = 'startup'
+        command.thread_id = self.gstreamer_thread_id
+        command.block_name = library.BlockName.GStreamerSrc.value
+        command.config = yaml_cfg
+        self.host_bridge.command_hub.add_worker(command)
+
+        self.channel_levels_thread_id = thread_id_generator()
+        command = Command()
+        command.command = 'startup'
+        command.thread_id = self.channel_levels_thread_id
+        command.block_name = library.BlockName.ChannelLevels.value
+        command.config = yaml_cfg
+        self.host_bridge.command_hub.add_worker(command)
+        self.worker = self.host_bridge.command_hub.get_worker(
+            library.BlockName.ChannelLevels.value,
+            self.channel_levels_thread_id,
+        )
+        self.worker.content_msg.connect(self.set_channel_levels)
+        # TODO: Remove hardcode by reading number of channels from cfg.
+        self.meter_packages = [MeterPackage(str(i)) for i in range(2)]
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        for meter in self.meter_packages:
+            layout.addWidget(meter)
+        self.setLayout(layout)
+
+    @Slot(bytes, bytes, bytes)
+    def set_channel_levels(self, topic, timestamp, msg):
+        command = ChannelLevels()
+        command.ParseFromString(msg)
+        levels = np.frombuffer(command.levels, dtype=np.float32)
+        print(levels)
+
+        for i, l in enumerate(levels):
+            self.meter_packages[i].meter.setLevel(float(l))
