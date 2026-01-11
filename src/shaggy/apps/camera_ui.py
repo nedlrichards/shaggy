@@ -1,10 +1,11 @@
 import sys
 import threading
 import click
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QTabWidget, QWidget
 
 from shaggy.widgets.channel_levels import AcousticChannels
 from shaggy.widgets.heartbeat_status import HeartbeatStatus
+from shaggy.widgets.power_spectral_density import PowerSpectralDensityWidget
 from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
@@ -50,7 +51,15 @@ class MainWindow(QMainWindow):
         thread_id_generator = ThreadIDGenerator()
         self.heartbeat_status = HeartbeatStatus(thread_id_generator, host_bridge)
         self.channel_levels = AcousticChannels(cfg, thread_id_generator, host_bridge)
-        audio_hbox.addWidget(self.channel_levels)
+        self.power_spectral_density = PowerSpectralDensityWidget(
+            cfg,
+            thread_id_generator,
+            host_bridge,
+        )
+        tabs = QTabWidget()
+        tabs.addTab(self.channel_levels, "channels")
+        tabs.addTab(self.power_spectral_density, "specta")
+        audio_hbox.addWidget(tabs)
 
         """
 

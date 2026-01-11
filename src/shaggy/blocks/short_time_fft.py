@@ -67,6 +67,7 @@ class ShortTimeFFT:
         msg.num_fft = self.short_time_fft.mfft
         msg.sample_rate = self.short_time_fft.sample_rate
         msg.num_channel_2 = num_channels
+        msg.thread_id = self.thread_id
 
         sample_buf = stft_samples.numpy()
         sample_buf = np.moveaxis(sample_buf, [0, 1, 2], [-1, -2, -3])
@@ -75,9 +76,7 @@ class ShortTimeFFT:
         msg = msg.SerializeToString()
 
         self.block.pub_socket.send_string(library.BlockName.ShortTimeFFT.value, zmq.SNDMORE)
-        timestamp_ns = int(time.time() * 1e9)
-        timestamp_bytes = timestamp_ns.to_bytes(8, "little")
-        self.block.pub_socket.send(timestamp_bytes, zmq.SNDMORE)
+        self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         self.block.pub_socket.send_multipart([msg])
 
         self.frame_number += 1

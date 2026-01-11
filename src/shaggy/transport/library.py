@@ -3,6 +3,7 @@ from typing import Optional
 
 from shaggy.proto.command_pb2 import Command
 from shaggy.proto.channel_levels_pb2 import ChannelLevels
+from shaggy.proto.stft_pb2 import STFT
 
 EXTERNAL_HOST = "10.1.1.0"
 LOCAL_HOST = "127.0.0.1"
@@ -20,6 +21,7 @@ class BlockName(str, Enum):
 TRANSPORT_TOPICS = {
         BlockName.Heartbeat.value: Command,
         BlockName.ChannelLevels.value: ChannelLevels,
+        BlockName.ShortTimeFFT.value: STFT,
 }
 
 def get_address_from_cfg(cfg):
