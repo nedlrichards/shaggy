@@ -1,4 +1,4 @@
-import torch
+import numpy as np
 
 from shaggy.subs.stft_buffer import STFTBuffer, STFTBufferConfig
 
@@ -31,9 +31,11 @@ class ChannelLevels():
                 num_channels=cfg['gstreamer_src']['channels'],
                 )
 
-    def __call__(self, msg: bytes) -> torch.Tensor:
+    def __call__(self, msg: bytes):
         samples = self.stft_buffer(msg)
         if samples is None:
             return None
-        samples_dB = 20 * torch.log10(abs(samples))
+
+        samples_dB = 20 * np.log10(abs(samples.numpy()))
+        samples_dB = samples_dB.max(axis=-1)
         return samples_dB

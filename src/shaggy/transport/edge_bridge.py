@@ -4,11 +4,7 @@ import zmq
 from shaggy.transport import library
 from shaggy.proto.command_pb2 import Command
 from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft
-from shaggy.workers.command_handler import CommandHandler
-
-TRANSPORT_TOPICS = [
-        heartbeat.BLOCK_NAME,
-        ]
+from shaggy.transport.command_handler import CommandHandler
 
 class EdgeBridge:
     """ZMQ bridge that runs on the device side and manages block threads."""
@@ -42,7 +38,11 @@ class EdgeBridge:
 
         while self._running:
             socks = dict(self._poller.poll())
-            if socks.get(self.command_socket) == zmq.POLLIN:
+            if socks.get(self.frontend) == zmq.POLLIN:
+                topic, timestamp, msg = self.frontend.recv_multipart()
+                self.backend.send_multipart((topic, timestamp, msg))
+                print(f'sending {topic}')
+            elif socks.get(self.command_socket) == zmq.POLLIN:
                 timestamp, message = self.command_socket.recv_multipart()
                 command = Command()
                 command.ParseFromString(message)
@@ -52,33 +52,30 @@ class EdgeBridge:
                     self.shutdown(command)
                 else:
                     self.command_handler.passthrough(command)
-            if socks.get(self.frontend) == zmq.POLLIN:
-                topic, timestamp, msg = self.frontend.recv_multipart()
-                if topic.decode() in TRANSPORT_TOPICS:
-                    self.backend.send_multipart((topic, timestamp, msg))
-            for pair_socket in self.command_handler.command_pairs.values():
-                if socks.get(pair_socket) == zmq.POLLIN:
-                    timestamp, message = pair_socket.recv_multipart()
-                    command = Command()
-                    command.ParseFromString(message)
-                    print(f"Command from block: {command.command}.")
-                    if command.block_name == 'heartbeat' and command.command == 'shutdown':
-                        self.shutdown(command)
+            else:
+                for pair_socket in self.command_handler.command_pairs.values():
+                    if socks.get(pair_socket) == zmq.POLLIN:
+                        timestamp, message = pair_socket.recv_multipart()
+                        command = Command()
+                        command.ParseFromString(message)
+                        print(f"Command from block: {command.command}.")
+                        if command.block_name == 'heartbeat' and command.command == 'shutdown':
+                            self.shutdown(command)
 
     def startup(self, command):
         block_socket = library.get_block_socket(command.block_name, command.thread_id)
         cfg = OmegaConf.create(command.config)
 
-        if command.block_name == heartbeat.BLOCK_NAME:
+        if command.block_name == library.BlockName.Heartbeat.value:
             thread_name = self.command_handler.start_heartbeat(command.thread_id)
             self.heartbeat_id = thread_name
-        elif command.block_name == gstreamer_src.BLOCK_NAME:
+        elif command.block_name == library.BlockName.GStreamerSrc.value:
             thread_name = self.command_handler.start_gstreamer_src(cfg, command.thread_id)
             self.gstreamer_src_id = thread_name
-        elif command.block_name == channel_levels.BLOCK_NAME:
+        elif command.block_name == library.BlockName.ChannelLevels.value:
             thread_name = self.command_handler.start_channel_levels(self.gstreamer_src_id, cfg, command.thread_id)
             self.channel_levels_id = thread_name
-        elif command.block_name == short_time_fft.BLOCK_NAME:
+        elif command.block_name == library.BlockName.ShortTimeFFT.value:
             thread_name = self.command_handler.start_short_time_fft(self.gstreamer_src_id, cfg, command.thread_id)
             self.short_time_fft_id = thread_name
 

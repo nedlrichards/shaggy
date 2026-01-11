@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x63hannel_levels.proto\x12\x06shaggy\"\x8b\x01\n\rChannelLevels\x12\x19\n\x0c\x66rame_number\x18\x01 \x01(\x05H\x00\x88\x01\x01\x12\x1b\n\x0enum_channels_0\x18\x02 \x01(\x05H\x01\x88\x01\x01\x12\x13\n\x06levels\x18\x03 \x01(\x0cH\x02\x88\x01\x01\x42\x0f\n\r_frame_numberB\x11\n\x0f_num_channels_0B\t\n\x07_levelsb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x63hannel_levels.proto\x12\x06shaggy\"\xb1\x01\n\rChannelLevels\x12\x19\n\x0c\x66rame_number\x18\x01 \x01(\x05H\x00\x88\x01\x01\x12\x1b\n\x0enum_channels_0\x18\x02 \x01(\x05H\x01\x88\x01\x01\x12\x13\n\x06levels\x18\x03 \x01(\x0cH\x02\x88\x01\x01\x12\x16\n\tthread_id\x18\x04 \x01(\tH\x03\x88\x01\x01\x42\x0f\n\r_frame_numberB\x11\n\x0f_num_channels_0B\t\n\x07_levelsB\x0c\n\n_thread_idb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,5 +32,5 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'channel_levels_pb2', _globa
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_CHANNELLEVELS']._serialized_start=33
-  _globals['_CHANNELLEVELS']._serialized_end=172
+  _globals['_CHANNELLEVELS']._serialized_end=210
 # @@protoc_insertion_point(module_scope)

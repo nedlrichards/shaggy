@@ -1,52 +1,46 @@
-from PySide6.QtCore import QObject, Signal, Slot
-import zmq
+from PySide6.QtCore import QObject, Signal, Slot, QTimer
 
-from shaggy.blocks import heartbeat
 from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
-from shaggy.workers.host_bridge import HostBridge
+from shaggy.transport.host_bridge import HostBridge
 
 
-class HeartbeatWorker(QObject):
+class Heartbeat(QObject):
     """Listen for heartbeat PUB messages, ack, and emit timeout status."""
 
     status = Signal(bool)
 
     def __init__(
         self,
-        address: str,
         host_bridge: HostBridge,
-        context: zmq.Context = None,
-        timeout_ms: int = 3000,
+        thread_id: str,
+        timeout_s: float = 3.,
     ):
         super().__init__()
-        self.address = address
         self.host_bridge = host_bridge
-        self.context = context or zmq.Context.instance()
-        self.timeout_ms = timeout_ms
-        self._running = False
+        self.thread_id = thread_id
+        self.timeout_s = timeout_s
+        self.timeout_timer = QTimer(self)
+        self.timeout_timer.setSingleShot(True)
+        self.timeout_timer.setInterval(int(self.timeout_s * 1000))
+        self.timeout_timer.timeout.connect(self._emit_timeout)
+        self.timeout_timer.start()
+        self.worker = self.host_bridge.command_hub.get_worker(
+            library.BlockName.Heartbeat.value,
+            self.thread_id,
+        )
+        self.worker.content_msg.connect(self.repeat_heartbeat)
 
-        self.bridge_socket = self.context.socket(zmq.SUB)
-        self.bridge_socket.connect(library.get_bridge_connection(self.address))
-        self.bridge_socket.setsockopt_string(zmq.SUBSCRIBE, heartbeat.BLOCK_NAME)
+    @Slot(bytes, bytes, bytes)
+    def repeat_heartbeat(self, topic, timestamp, msg):
+        command = Command()
+        command.ParseFromString(msg)
+        command.ack = True
+
+        self.host_bridge.command_hub.send_command(command)
+        self.status.emit(True)
+        self.timeout_timer.start()
 
     @Slot()
-    def start(self) -> None:
-        poller = zmq.Poller()
-        poller.register(self.bridge_socket, zmq.POLLIN)
-
-        self._running = True
-        while self._running:
-            socks = dict(poller.poll(self.timeout_ms))
-            if socks.get(self.bridge_socket) == zmq.POLLIN:
-                topic, timestamp, message = self.bridge_socket.recv_multipart()
-                heartbeat_command = Command()
-                heartbeat_command.ParseFromString(message)
-                heartbeat_command.ack = True
-                self.host_bridge.send_command(heartbeat_command)
-                self.status.emit(True)
-            else:
-                self.status.emit(False)
-
-    def shutdown(self) -> None:
-        self._running = False
+    def _emit_timeout(self) -> None:
+        self.status.emit(False)

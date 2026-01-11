@@ -1,15 +1,13 @@
 import sys
-
+import threading
 import click
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
 
-from omegaconf import OmegaConf
-from shaggy.proto.command_pb2 import Command
-from shaggy.widgets.heartbeat import HeartbeatStatus
-from shaggy.workers.host_bridge import HostBridge
+from shaggy.widgets.channel_levels import AcousticChannels
+from shaggy.widgets.heartbeat_status import HeartbeatStatus
+from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
-from shaggy.blocks import heartbeat, gstreamer_src, channel_levels, short_time_fft
 
 
 class MainWindow(QMainWindow):
@@ -17,7 +15,7 @@ class MainWindow(QMainWindow):
     def __init__(self, address):
         super().__init__()
 
-        self.setGeometry(100, 100, 500, 300)
+        self.setGeometry(100, 100, 1000, 600)
 
         self.title = 'Acoustic Camera'
         self.set_title()
@@ -30,9 +28,16 @@ class MainWindow(QMainWindow):
         # display the a message in 5 seconds
         self.status_bar.showMessage('Ready', 5000)
 
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+
+        audio_hbox = QHBoxLayout()
+        central_widget.setLayout(audio_hbox)
+
         # add a permanent widget to the status bar
         host_bridge = HostBridge(address)
-        thread_id_generator = ThreadIDGenerator()
+        t = threading.Thread(target=host_bridge.run, daemon=True)
+        t.start()
 
         stft_cfg = {
                 'window_length': 12000,
@@ -42,34 +47,31 @@ class MainWindow(QMainWindow):
                 }
         cfg = {'gstreamer_src': {'sample_rate': 48000, 'channels': 2}, 'stft': stft_cfg}
 
-        self.heartbeat_status = HeartbeatStatus(address, host_bridge)
+        thread_id_generator = ThreadIDGenerator()
+        self.heartbeat_status = HeartbeatStatus(thread_id_generator, host_bridge)
+        self.channel_levels = AcousticChannels(cfg, thread_id_generator, host_bridge)
+        audio_hbox.addWidget(self.channel_levels)
 
-        command = Command()
-        command.command = 'startup'
+        """
+
         command.thread_id = thread_id_generator()
-        command.block_name = heartbeat.BLOCK_NAME
-        command.config = OmegaConf.to_yaml(OmegaConf.create(cfg))
+        command.block_name = library.BlockName.GStreamerSrc.value
 
         host_bridge.send_command(command)
 
         command.thread_id = thread_id_generator()
-        command.block_name = gstreamer_src.BLOCK_NAME
+        command.block_name = library.BlockName.ChannelLevels.value
 
         host_bridge.send_command(command)
 
         command.thread_id = thread_id_generator()
-        command.block_name = channel_levels.BLOCK_NAME
+        command.block_name = library.BlockName.ShortTimeFFT.value
 
         host_bridge.send_command(command)
-
-        command.thread_id = thread_id_generator()
-        command.block_name = short_time_fft.BLOCK_NAME
-
-        host_bridge.send_command(command)
+        """
 
         self.status_bar.addPermanentWidget(self.heartbeat_status)
         self.show()
-
 
     def set_title(self, filename=None):
         title = f"{filename if filename else 'Untitled'} - {self.title}"

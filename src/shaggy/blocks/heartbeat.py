@@ -7,8 +7,6 @@ from shaggy.blocks.block import Block
 from shaggy.proto.command_pb2 import Command
 from shaggy.subs import heartbeat_src
 from shaggy.transport import library
-
-BLOCK_NAME = 'heartbeat'
 HEARTBEAT_MAX_MISSES = 3
 
 class Heartbeat:
@@ -20,12 +18,15 @@ class Heartbeat:
         self.heartbeat_thread = threading.Thread(target=self.heartbeat_src.run)
 
         self.sub_addresses = {
-            BLOCK_NAME: library.get_block_socket(heartbeat_src.BLOCK_NAME, thread_id)
+            library.BlockName.Heartbeat.value: library.get_block_socket(
+                library.BlockName.HeartbeatSrc.value,
+                thread_id,
+            )
         }
         self.block = Block(
             thread_id,
             self.sub_addresses,
-            library.get_block_socket(BLOCK_NAME, thread_id),
+            library.get_block_socket(library.BlockName.Heartbeat.value, thread_id),
             self.context,
         )
         self.block.parse_sub = self.parse_sub
@@ -47,13 +48,13 @@ class Heartbeat:
 
     def parse_sub(self, sub_id, topic, timestamp_ns, message):
         command = Command()
-        command.command = BLOCK_NAME
+        command.command = library.BlockName.Heartbeat.value
         command.ack = False
-        command.block_name = BLOCK_NAME
+        command.block_name = library.BlockName.Heartbeat.value
         command.thread_id = self.thread_id
         payload = command.SerializeToString()
 
-        self.block.pub_socket.send_string(BLOCK_NAME, zmq.SNDMORE)
+        self.block.pub_socket.send_string(library.BlockName.Heartbeat.value, zmq.SNDMORE)
         self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         self.block.pub_socket.send(payload)
 
@@ -61,7 +62,7 @@ class Heartbeat:
         if self.num_misses > HEARTBEAT_MAX_MISSES:
             shutdown = Command()
             shutdown.command = "shutdown"
-            shutdown.block_name = BLOCK_NAME
+            shutdown.block_name = library.BlockName.Heartbeat.value
             shutdown.thread_id = self.thread_id
             payload = shutdown.SerializeToString()
             self.block.control_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
@@ -72,5 +73,5 @@ class Heartbeat:
         command.ParseFromString(message)
         if command.command == "shutdown":
             self.block.shutdown()
-        if command.command == BLOCK_NAME:
+        if command.command == library.BlockName.Heartbeat.value:
             self.num_misses = 0
