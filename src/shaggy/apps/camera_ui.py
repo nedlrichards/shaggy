@@ -4,7 +4,7 @@ import click
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
 
 from shaggy.widgets.channel_levels import AcousticChannels
-from shaggy.widgets.heartbeat import HeartbeatStatus
+from shaggy.widgets.heartbeat_status import HeartbeatStatus
 from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
