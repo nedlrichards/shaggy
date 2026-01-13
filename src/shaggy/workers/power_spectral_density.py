@@ -36,7 +36,7 @@ class PowerSpectralDensity(QObject):
 
         num_times = stft_msg.num_times_0
         num_channels = stft_msg.num_channel_2
-        num_freq = stft_msg.num_fft // 2 + 1 if stft_msg.num_fft else 0
+        num_freq = stft_msg.num_fft // 2 + 1
 
         stft_flat = np.frombuffer(stft_msg.stft_samples, dtype=np.complex64)
         stft_samples = stft_flat.reshape((num_times, num_freq, num_channels))
