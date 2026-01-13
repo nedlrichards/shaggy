@@ -3,6 +3,7 @@ from typing import Optional
 
 from shaggy.proto.command_pb2 import Command
 from shaggy.proto.channel_levels_pb2 import ChannelLevels
+from shaggy.proto.stft_pb2 import STFT
 
 EXTERNAL_HOST = "10.1.1.0"
 LOCAL_HOST = "127.0.0.1"
@@ -20,6 +21,7 @@ class BlockName(str, Enum):
 TRANSPORT_TOPICS = {
         BlockName.Heartbeat.value: Command,
         BlockName.ChannelLevels.value: ChannelLevels,
+        BlockName.ShortTimeFFT.value: STFT,
 }
 
 def get_address_from_cfg(cfg):
@@ -36,11 +38,17 @@ def get_address(address_type):
     return address
 
 def get_control_socket(thread_id):
-    return f"inproc://control-{thread_id}"
+    if thread_id == "":
+        return f"inproc://control-{BlockName.Heartbeat.value}"
+    else:
+        return f"inproc://control-{thread_id}"
 
 def get_thread_name(block_name: Optional[str], thread_id: Optional[str]):
     if block_name is not None:
-        thread_name = f"{block_name}-{thread_id}"
+        if thread_id is not None and len(thread_id) > 0:
+            thread_name = f"{block_name}-{thread_id}"
+        else:
+            thread_name = block_name
     else:
         thread_name = None
     return thread_name

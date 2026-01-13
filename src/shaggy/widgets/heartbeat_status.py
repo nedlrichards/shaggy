@@ -6,16 +6,13 @@ from shaggy.transport import library
 from shaggy.workers.heartbeat import Heartbeat
 
 class HeartbeatStatus(QWidget):
-    def __init__(self, thread_id_generator, host_bridge):
+    def __init__(self, host_bridge):
         super().__init__()
         self.host_bridge = host_bridge
-        self.thread_id = thread_id_generator()
 
         command = Command()
         command.command = 'startup'
-        command.thread_id = self.thread_id
         command.block_name = library.BlockName.Heartbeat.value
-        command.config = ""
         self.host_bridge.command_hub.add_worker(command)
 
         self.heartbeat_indicator = QLabel("Heartbeat")
@@ -24,7 +21,7 @@ class HeartbeatStatus(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 0, 4, 0)
         layout.addWidget(self.heartbeat_indicator)
-        self.heartbeat = Heartbeat(self.host_bridge, self.thread_id)
+        self.heartbeat = Heartbeat(self.host_bridge)
         self.heartbeat.status.connect(self.set_heartbeat_status)
 
     @Slot(bool)

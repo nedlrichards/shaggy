@@ -31,6 +31,7 @@ class Block:
                     self.parse_sub(sub_id, topic, int(timestamp_ns), message)
             if socks.get(self.control_socket) == zmq.POLLIN:
                 timestamp_ns, message = self.control_socket.recv_multipart()
+                print(f'{self.thread_id} block control message received')
                 self.parse_control(int(timestamp_ns), message) 
 
         for _, sub_socket in self.sub_sockets.items():
@@ -51,7 +52,7 @@ class Block:
         self.pub_socket.bind(self.pub_address)
 
         self.control_socket = self.context.socket(zmq.PAIR)
-        self.control_socket.connect(library.get_control_socket(self.thread_id))
+        self.control_socket.bind(library.get_control_socket(self.thread_id))
 
         poller = zmq.Poller()
         for sub_id, sub_socket in self.sub_sockets.items():

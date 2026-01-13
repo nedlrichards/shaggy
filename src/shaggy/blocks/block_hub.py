@@ -8,7 +8,7 @@ from shaggy.transport import library
 
 import zmq
 
-class CommandHandler:
+class BlockHub:
 
     def __init__(self, address, context: zmq.Context = None):
         self.context = context or zmq.Context.instance()
@@ -38,7 +38,7 @@ class CommandHandler:
         self.block_threads[thread_name] = thread
 
         command = self.context.socket(zmq.PAIR)
-        command.bind(library.get_control_socket(thread_id))
+        command.connect(library.get_control_socket(thread_id))
         self.command_pairs[thread_name] = command
 
         self.block_threads[thread_name].start()
@@ -53,20 +53,29 @@ class CommandHandler:
 
     def shutdown(self, command: Command):
         thread_name = library.get_thread_name(command.block_name, command.thread_id)
-        if thread_name is not None:
+        if thread_name != "":
             command_pairs = {thread_name: self.command_pairs[thread_name]}
             block_threads = {thread_name: self.block_threads[thread_name]}
+            del self.command_pairs[thread_name]
+            del self.block_threads[thread_name]
         else:
             command_pairs = self.command_pairs
             block_threads = self.block_threads
-
-        # TODO remove command_pair and block_threads from self dictionaries.
+            self.command_pairs = {
+                    library.BlockName.Heartbeat.value:
+                    self.command_pairs[library.BlockName.Heartbeat.value]
+                    }
+            self.block_threads = {
+                    library.BlockName.Heartbeat.value:
+                    self.block_threads[library.BlockName.Heartbeat.value]
+                    }
 
         for id, command_pair in command_pairs.items():
             thread_info = id.split('-')
-            block_name = ('-').join(thread_info[:-1])
-            if block_name == library.BlockName.Heartbeat.value:
+            if thread_info[0] == library.BlockName.Heartbeat.value:
                 continue
+            print(f"{id} command pair shutdown")
+            block_name = '-'.join(thread_info[:-1])
             command = Command()
             command.command = 'shutdown'
             command.block_name = block_name
@@ -77,5 +86,8 @@ class CommandHandler:
             command_pair.send(msg)
 
         for id, block_thread in block_threads.items():
-            print(f"{id} shutdown command")
-            block_thread.join()
+            thread_info = id.split('-')
+            if thread_info[0] == library.BlockName.Heartbeat.value:
+                continue
+            print(f"{id} block thread shutdown")
+            #block_thread.join()

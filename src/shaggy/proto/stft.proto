@@ -9,4 +9,5 @@ message STFT {
   optional int32 sample_rate = 4;
   optional int32 num_channel_2 = 5;
   optional bytes stft_samples = 6;
+  optional string thread_id = 7;
 }
