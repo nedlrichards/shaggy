@@ -51,7 +51,7 @@ class GStreamerSrc:
             library.get_block_socket(library.BlockName.GStreamerSrc.value, self.thread_id)
         )
         self.control_socket = self.context.socket(zmq.PAIR)
-        self.control_socket.connect(library.get_control_socket(self.thread_id))
+        self.control_socket.bind(library.get_control_socket(self.thread_id))
 
         pipeline = (
                 "audiotestsrc"

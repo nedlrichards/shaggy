@@ -10,6 +10,15 @@ from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
 
+stft_cfg = {
+        'window_length': 12000,
+        'stride_length': 6000,
+        'window_spec': "HAMMING",
+        'scaling_spec': "psd", 
+        }
+CFG = {'gstreamer_src': {'sample_rate': 48000, 'channels': 2}, 'stft': stft_cfg}
+
+
 
 class MainWindow(QMainWindow):
 
@@ -40,44 +49,13 @@ class MainWindow(QMainWindow):
         t = threading.Thread(target=host_bridge.run, daemon=True)
         t.start()
 
-        stft_cfg = {
-                'window_length': 12000,
-                'stride_length': 6000,
-                'window_spec': "HAMMING",
-                'scaling_spec': "psd", 
-                }
-        cfg = {'gstreamer_src': {'sample_rate': 48000, 'channels': 2}, 'stft': stft_cfg}
-
-        thread_id_generator = ThreadIDGenerator()
-        self.heartbeat_status = HeartbeatStatus(thread_id_generator, host_bridge)
-        self.channel_levels = AcousticChannels(cfg, thread_id_generator, host_bridge)
-        self.power_spectral_density = PowerSpectralDensityWidget(
-            cfg,
-            thread_id_generator,
-            host_bridge,
-        )
-        tabs = QTabWidget()
-        tabs.addTab(self.channel_levels, "channels")
-        tabs.addTab(self.power_spectral_density, "specta")
-        audio_hbox.addWidget(tabs)
-
-        """
-
-        command.thread_id = thread_id_generator()
-        command.block_name = library.BlockName.GStreamerSrc.value
-
-        host_bridge.send_command(command)
-
-        command.thread_id = thread_id_generator()
-        command.block_name = library.BlockName.ChannelLevels.value
-
-        host_bridge.send_command(command)
-
-        command.thread_id = thread_id_generator()
-        command.block_name = library.BlockName.ShortTimeFFT.value
-
-        host_bridge.send_command(command)
-        """
+        self.thread_id_generator = ThreadIDGenerator()
+        self.host_bridge = host_bridge
+        self.heartbeat_status = HeartbeatStatus(host_bridge)
+        self.heartbeat_status.heartbeat.status.connect(self._on_heartbeat_status)
+        self.tabs = QTabWidget()
+        audio_hbox.addWidget(self.tabs)
+        self._tabs_initialized = False
 
         self.status_bar.addPermanentWidget(self.heartbeat_status)
         self.show()
@@ -85,6 +63,21 @@ class MainWindow(QMainWindow):
     def set_title(self, filename=None):
         title = f"{filename if filename else 'Untitled'} - {self.title}"
         self.setWindowTitle(title)
+
+    def _on_heartbeat_status(self, heartbeat_status: bool) -> None:
+        if heartbeat_status and not self._tabs_initialized:
+            self._init_tabs()
+
+    def _init_tabs(self) -> None:
+        self.channel_levels = AcousticChannels(CFG, self.thread_id_generator, self.host_bridge)
+        self.power_spectral_density = PowerSpectralDensityWidget(
+            CFG,
+            self.thread_id_generator,
+            self.host_bridge,
+        )
+        self.tabs.addTab(self.channel_levels, "channels")
+        self.tabs.addTab(self.power_spectral_density, "specta")
+        self._tabs_initialized = True
 
 @click.command()
 @click.option('--external', 'address_type', flag_value='external', default='external')

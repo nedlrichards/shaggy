@@ -27,8 +27,8 @@ class Worker(QObject):
         self.context = context or zmq.Context.instance()
 
         self.frontend = self.context.socket(zmq.SUB)
-
-        self.poller_control_address = f"inproc://poller-control-{self.thread_id}"
+        thread_name = library.get_thread_name(self.block_name, self.thread_id)
+        self.poller_control_address = f"inproc://poller-control-{thread_name}"
         self.poller_control_socket = self.context.socket(zmq.PAIR)
         self.poller_control_socket.bind(self.poller_control_address)
 

@@ -13,12 +13,10 @@ class Heartbeat(QObject):
     def __init__(
         self,
         host_bridge: HostBridge,
-        thread_id: str,
         timeout_s: float = 3.,
     ):
         super().__init__()
         self.host_bridge = host_bridge
-        self.thread_id = thread_id
         self.timeout_s = timeout_s
         self.timeout_timer = QTimer(self)
         self.timeout_timer.setSingleShot(True)
@@ -27,7 +25,7 @@ class Heartbeat(QObject):
         self.timeout_timer.start()
         self.worker = self.host_bridge.command_hub.get_worker(
             library.BlockName.Heartbeat.value,
-            self.thread_id,
+            None,
         )
         self.worker.content_msg.connect(self.repeat_heartbeat)
 

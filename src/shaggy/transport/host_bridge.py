@@ -1,7 +1,7 @@
 import zmq
 
 from shaggy.transport import library
-from shaggy.workers.command_hub import CommandHub
+from shaggy.workers.worker_hub import WorkerHub
 
 class HostBridge:
     """ZMQ bridge that runs on the host side and manages the command socket."""
@@ -11,7 +11,7 @@ class HostBridge:
         self.context = context or zmq.Context.instance()
 
         self.frontend = self.context.socket(zmq.SUB)
-        self.command_hub = CommandHub(self.address, self.context)
+        self.command_hub = WorkerHub(self.address, self.context)
         self.command_hub.start()
 
     def run(self):

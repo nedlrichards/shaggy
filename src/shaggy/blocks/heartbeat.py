@@ -57,13 +57,13 @@ class Heartbeat:
         self.block.pub_socket.send_string(library.BlockName.Heartbeat.value, zmq.SNDMORE)
         self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         self.block.pub_socket.send(payload)
+        print('heartbeat block')
 
         self.num_misses += 1
         if self.num_misses > HEARTBEAT_MAX_MISSES:
+            print('heartbeat block shutdown')
             shutdown = Command()
             shutdown.command = "shutdown"
-            shutdown.block_name = library.BlockName.Heartbeat.value
-            shutdown.thread_id = self.thread_id
             payload = shutdown.SerializeToString()
             self.block.control_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
             self.block.control_socket.send(payload)

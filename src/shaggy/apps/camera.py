@@ -15,7 +15,6 @@ from shaggy.transport import library
 def my_app(address_type) -> None:
     address = library.get_address(address_type)
     edge_bridge = EdgeBridge(address)
-
     edge_bridge.run()
 
 if __name__ == "__main__":

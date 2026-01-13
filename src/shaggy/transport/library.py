@@ -38,11 +38,17 @@ def get_address(address_type):
     return address
 
 def get_control_socket(thread_id):
-    return f"inproc://control-{thread_id}"
+    if thread_id == "":
+        return f"inproc://control-{BlockName.Heartbeat.value}"
+    else:
+        return f"inproc://control-{thread_id}"
 
 def get_thread_name(block_name: Optional[str], thread_id: Optional[str]):
     if block_name is not None:
-        thread_name = f"{block_name}-{thread_id}"
+        if thread_id is not None and len(thread_id) > 0:
+            thread_name = f"{block_name}-{thread_id}"
+        else:
+            thread_name = block_name
     else:
         thread_name = None
     return thread_name

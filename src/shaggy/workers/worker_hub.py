@@ -1,3 +1,4 @@
+from typing import Optional
 import time
 
 from PySide6.QtCore import QObject, QThread, Slot
@@ -7,7 +8,7 @@ from shaggy.proto.command_pb2 import Command
 from shaggy.transport import library
 from shaggy.workers.worker import Worker
 
-class CommandHub(QObject):
+class WorkerHub(QObject):
 
     def __init__(self, address: str, context: zmq.Context = None):
         super().__init__()
@@ -46,13 +47,15 @@ class CommandHub(QObject):
         self.worker_threads[thread_name] = worker_thread
         worker_thread.start()
 
-        payload = command.SerializeToString()
-        self.command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
-        self.command_socket.send(payload)
+        if command.block_name != library.BlockName.Heartbeat.value:
+            print(command)
+            payload = command.SerializeToString()
+            self.command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+            self.command_socket.send(payload)
 
-    def get_worker(self, block_name: str, thread_id: str) -> Worker | None:
+    def get_worker(self, block_name: str, thread_id: Optional[str]) -> Worker | None:
         thread_name = library.get_thread_name(block_name, thread_id)
-        return self.workers.get(thread_name)
+        return self.workers[thread_name]
 
     @Slot(Command)
     def remove_worker(self, command: Command):
