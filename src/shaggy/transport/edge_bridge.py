@@ -39,13 +39,9 @@ class EdgeBridge:
 
         while True:
             socks = dict(self._poller.poll())
-            if not socks:
-                print('miss')
             if socks.get(self.frontend) == zmq.POLLIN:
                 topic, timestamp, msg = self.frontend.recv_multipart()
                 self.backend.send_multipart((topic, timestamp, msg))
-                if topic !=b'gstreamer-src': 
-                    print(f'sending {topic}')
             if socks.get(self.command_socket) == zmq.POLLIN:
                 timestamp, message = self.command_socket.recv_multipart()
                 command = Command()
