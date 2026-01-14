@@ -5,11 +5,13 @@ from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QTabWidget
 
 from shaggy.widgets.channel_levels import AcousticChannels
 from shaggy.widgets.heartbeat_status import HeartbeatStatus
-from shaggy.widgets.power_spectral_density import PowerSpectralDensityWidget
+from shaggy.widgets.spectra import SpectraWidget
 from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
 from shaggy.transport.thread_id_generator import ThreadIDGenerator
 
+from shaggy.proto.command_pb2 import Command
+from omegaconf import OmegaConf
 stft_cfg = {
         'window_length': 12000,
         'stride_length': 6000,
@@ -25,7 +27,7 @@ class MainWindow(QMainWindow):
     def __init__(self, address):
         super().__init__()
 
-        self.setGeometry(100, 100, 1000, 600)
+        self.setGeometry(100, 100, 1400, 800)
 
         self.title = 'Acoustic Camera'
         self.set_title()
@@ -70,13 +72,20 @@ class MainWindow(QMainWindow):
 
     def _init_tabs(self) -> None:
         self.channel_levels = AcousticChannels(CFG, self.thread_id_generator, self.host_bridge)
-        self.power_spectral_density = PowerSpectralDensityWidget(
+        psd_thread_id = self.thread_id_generator()
+        command = Command()
+        command.command = "startup"
+        command.thread_id = psd_thread_id
+        command.block_name = library.BlockName.ShortTimeFFT.value
+        command.config = OmegaConf.to_yaml(CFG)
+        self.host_bridge.command_hub.add_worker(command)
+        self.spectra = SpectraWidget(
             CFG,
-            self.thread_id_generator,
             self.host_bridge,
+            psd_thread_id,
         )
         self.tabs.addTab(self.channel_levels, "channels")
-        self.tabs.addTab(self.power_spectral_density, "specta")
+        self.tabs.addTab(self.spectra, "specta")
         self._tabs_initialized = True
 
 @click.command()

@@ -90,8 +90,9 @@ class AcousticChannels(QWidget):
             self.channel_levels_thread_id,
         )
         self.worker.content_msg.connect(self.set_channel_levels)
-        # TODO: Remove hardcode by reading number of channels from cfg.
-        self.meter_packages = [MeterPackage(str(i)) for i in range(2)]
+        num_channels = self.cfg['gstreamer_src']['channels']
+        self.meter_packages = [MeterPackage(str(i)) for i in range(num_channels)]
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         for meter in self.meter_packages:
@@ -103,7 +104,5 @@ class AcousticChannels(QWidget):
         command = ChannelLevels()
         command.ParseFromString(msg)
         levels = np.frombuffer(command.levels, dtype=np.float32)
-        print(levels)
-
         for i, l in enumerate(levels):
             self.meter_packages[i].meter.setLevel(float(l))
