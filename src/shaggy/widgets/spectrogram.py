@@ -1,11 +1,17 @@
 from math import ceil
+from copy import copy
+
 import numpy as np
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from shaggy.workers.power_spectral_density import PowerSpectralDensity
+
+cmap = copy(plt.cm.magma_r)
+cmap.set_under('w')
 
 
 class SpectrogramWidget(QWidget):
@@ -79,6 +85,7 @@ class SpectrogramWidget(QWidget):
             vmin=-60.0,
             vmax=0.0,
             shading="auto",
+            cmap=cmap,
         )
         self.axes.set_ylim(self.f_axis[0], 1000)
         self.num_skip = 10
@@ -120,7 +127,7 @@ class SpectrogramWidget(QWidget):
         else:
             spectrogram = spectrogram[:, self.channel_idx]
 
-        spectrogram_dB = 10 * np.log10(spectrogram + np.spacing(1.0, dtype=np.float32))
+        spectrogram_dB = 10 * np.log10(spectrogram + 1e-8)
         self.image.set_array(spectrogram_dB.T.ravel())
 
         self.canvas.draw_idle()
