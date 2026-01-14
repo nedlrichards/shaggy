@@ -60,13 +60,27 @@ class SpectrogramWidget(QWidget):
         self.block_shape = (self.block_size, self.num_channels, self.f_axis.size)
         self.sample_history = []
         for i in range(self.num_blocks):
-            block = np.full(block_shape, -200, dtype=np.float32)
+            block = np.full(self.block_shape, -200, dtype=np.float32)
             self.sample_history.append(block)
 
         self.t_axis = np.arange(self.block_size * self.num_blocks, dtype=np.float32)
         self.t_axis *= self.time_step_s
         self.block_idx = 0
         self.sample_idx = 0
+        initial_spectrogram = np.full(
+            (self.f_axis.size, self.t_axis.size),
+            -200,
+            dtype=np.float32,
+        )
+        self.image = self.axes.pcolormesh(
+            self.t_axis,
+            self.f_axis,
+            initial_spectrogram,
+            vmin=-60.0,
+            vmax=0.0,
+            shading="auto",
+        )
+        self.axes.set_ylim(self.f_axis[0], self.f_axis[-1])
 
     def _add_slice(self, psd) -> None:
         if self.sample_idx >= self.block_size:
@@ -102,7 +116,6 @@ class SpectrogramWidget(QWidget):
 
 
         spectrogram_dB = 10 * np.log10(spectrogram + np.spacing(1.0, dtype=np.float32))
-        self.image = self.axes.pcolormesh(self.t_axis, self.f_axis, spectrogram_dB, vmin=-60.0, vmax=0.0,)
-        self.axes.set_ylim(0, 1000)
+        self.image.set_array(spectrogram_dB.ravel())
 
         self.canvas.draw_idle()
