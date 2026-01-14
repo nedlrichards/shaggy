@@ -1,13 +1,6 @@
 import numpy as np
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import (
-    QButtonGroup,
-    QGroupBox,
-    QHBoxLayout,
-    QRadioButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QHBoxLayout, QWidget
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from shaggy.workers.power_spectral_density import PowerSpectralDensity
@@ -50,7 +43,6 @@ class PowerSpectralDensityWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.canvas, 1)
 
-        self.channel_buttons = None
         self.worker = PowerSpectralDensity(
             num_windows=num_windows,
             window_hop=window_hop,
@@ -58,10 +50,6 @@ class PowerSpectralDensityWidget(QWidget):
             thread_id=self.thread_id,
         )
         self.worker.psd_ready.connect(self.update_psd)
-
-    @Slot(int)
-    def _set_channel_idx(self, channel_id: int) -> None:
-        self.channel_idx = None if channel_id < 0 else channel_id
 
     def set_channel_idx(self, channel_idx: int | None) -> None:
         self.channel_idx = channel_idx
