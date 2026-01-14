@@ -74,7 +74,6 @@ class BlockHub:
             thread_info = id.split('-')
             if thread_info[0] == library.BlockName.Heartbeat.value:
                 continue
-            print(f"{id} command pair shutdown")
             block_name = '-'.join(thread_info[:-1])
             command = Command()
             command.command = 'shutdown'
@@ -89,5 +88,4 @@ class BlockHub:
             thread_info = id.split('-')
             if thread_info[0] == library.BlockName.Heartbeat.value:
                 continue
-            print(f"{id} block thread shutdown")
             #block_thread.join()

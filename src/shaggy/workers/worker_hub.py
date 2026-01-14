@@ -48,7 +48,6 @@ class WorkerHub(QObject):
         worker_thread.start()
 
         if command.block_name != library.BlockName.Heartbeat.value:
-            print(command)
             payload = command.SerializeToString()
             self.command_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
             self.command_socket.send(payload)

@@ -36,6 +36,7 @@ class ChannelLevels():
         if samples is None:
             return None
 
-        samples_dB = 20 * np.log10(abs(samples.numpy()))
+        samples_dB = 20 * np.log10(abs(samples.numpy()) + 1e-11)
         samples_dB = samples_dB.max(axis=-1)
+
         return samples_dB

@@ -58,7 +58,6 @@ class EdgeBridge:
                     command = Command()
                     command.ParseFromString(message)
                     if command.command == 'shutdown':
-                        print(command)
                         self.command_handler.shutdown(command)
 
     def startup(self, command):

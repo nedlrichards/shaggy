@@ -27,5 +27,5 @@ requires = ["uv_build>=0.7.19,<0.8.0"]
 build-backend = "uv_build"
 
 [project.scripts]
-camera="shaggy.apps.camera:my_app"
-controller="shaggy.apps.controller:my_app"
+camera_edge="shaggy.apps.camera_edge:my_app"
+camera_ui="shaggy.apps.camera_ui:my_app"

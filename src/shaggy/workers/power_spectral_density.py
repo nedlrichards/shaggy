@@ -15,7 +15,7 @@ class PowerSpectralDensity(QObject):
                  num_windows: int,
                  window_hop: int,
                  host_bridge: HostBridge,
-                 thread_id: str
+                 thread_id: str,
                  ):
         super().__init__()
         self.num_windows = num_windows
@@ -35,19 +35,19 @@ class PowerSpectralDensity(QObject):
         stft_msg.ParseFromString(msg)
 
         num_times = stft_msg.num_times_0
-        num_channels = stft_msg.num_channel_2
         num_freq = stft_msg.num_fft // 2 + 1
 
         stft_flat = np.frombuffer(stft_msg.stft_samples, dtype=np.complex64)
-        stft_samples = stft_flat.reshape((num_times, num_freq, num_channels))
+        stft_samples = stft_flat.reshape((num_times, num_freq, stft_msg.num_channel_2))
         self.stft_windows += list(stft_samples)
+
         while len(self.stft_windows) > self.num_windows + self.window_hop:
             self.stft_windows = self.stft_windows[self.window_hop:]
 
         if len(self.stft_windows) < self.num_windows:
             return
 
-        stft_ensample = np.array(self.stft_windows[:self.num_windows])
-        psd = np.mean(abs(stft_ensample) ** 2, axis=(0, 2))
+        stft_ensamble = np.array(self.stft_windows[:self.num_windows])
+        psd = np.mean(abs(stft_ensamble) ** 2, axis=0)
 
         self.psd_ready.emit(psd)

@@ -31,7 +31,6 @@ class Block:
                     self.parse_sub(sub_id, topic, int(timestamp_ns), message)
             if socks.get(self.control_socket) == zmq.POLLIN:
                 timestamp_ns, message = self.control_socket.recv_multipart()
-                print(f'{self.thread_id} block control message received')
                 self.parse_control(int(timestamp_ns), message) 
 
         for _, sub_socket in self.sub_sockets.items():
