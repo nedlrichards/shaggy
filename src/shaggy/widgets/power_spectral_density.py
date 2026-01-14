@@ -14,7 +14,6 @@ class PowerSpectralDensityWidget(QWidget):
         thread_id: str,
         num_windows: int = 10,
         window_hop: int = 1,
-        channel_idx: int | None = None,
     ):
         super().__init__()
         self.cfg = cfg
@@ -22,11 +21,7 @@ class PowerSpectralDensityWidget(QWidget):
         self.thread_id = thread_id
         self.sample_rate = cfg["gstreamer_src"]["sample_rate"]
         self.num_channels = self.cfg["gstreamer_src"]["channels"]
-        if channel_idx is not None and not 0 <= channel_idx < self.num_channels:
-            raise ValueError(
-                f"channel_idx must be in [0, {self.num_channels - 1}], got {channel_idx}"
-            )
-        self.channel_idx = channel_idx
+        self.channel_idx = None
 
         num_freq = cfg["stft"]["window_length"] // 2 + 1
         f_axis = np.arange(num_freq) / cfg["stft"]["window_length"]

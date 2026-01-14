@@ -10,8 +10,8 @@ from matplotlib.figure import Figure
 
 from shaggy.workers.power_spectral_density import PowerSpectralDensity
 
-cmap = copy(plt.cm.magma_r)
-cmap.set_under('w')
+CMAP = copy(plt.cm.magma_r)
+CMAP.set_under('w')
 
 
 class SpectrogramWidget(QWidget):
@@ -80,7 +80,7 @@ class SpectrogramWidget(QWidget):
             vmin=-60.0,
             vmax=0.0,
             shading="auto",
-            cmap=cmap,
+            cmap=CMAP,
         )
         self.axes.set_ylim(self.f_axis[0], 1000)
         self.num_skip = 10
@@ -93,7 +93,7 @@ class SpectrogramWidget(QWidget):
                 self.sample_idx = 0
             else:
                 self.sample_history = self.sample_history[1:]
-                block = np.full(self.block_shape, -200, dtype=np.float32)
+                block = np.full(self.block_shape, 1e-11, dtype=np.float32)
                 self.sample_history.append(block)
                 self.sample_idx = 0
 
