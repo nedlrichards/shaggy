@@ -18,7 +18,7 @@ class SpectraWidget(QWidget):
         cfg,
         host_bridge,
         thread_id: str,
-        num_windows: int = 10,
+        num_windows: int = 1,
         window_hop: int = 1,
         channel_idx: int | None = None,
         spectrogram_history: int = 200,
@@ -43,8 +43,6 @@ class SpectraWidget(QWidget):
             thread_id,
             num_windows=num_windows,
             window_hop=window_hop,
-            channel_idx=channel_idx,
-            history=spectrogram_history,
         )
         self.power_spectral_density = PowerSpectralDensityWidget(
             cfg,

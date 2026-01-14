@@ -80,7 +80,9 @@ class SpectrogramWidget(QWidget):
             vmax=0.0,
             shading="auto",
         )
-        self.axes.set_ylim(self.f_axis[0], self.f_axis[-1])
+        self.axes.set_ylim(self.f_axis[0], 1000)
+        self.num_skip = 10
+        self.skip_idx = 0
 
     def _add_slice(self, psd) -> None:
         if self.sample_idx >= self.block_size:
@@ -108,14 +110,17 @@ class SpectrogramWidget(QWidget):
     @Slot(object)
     def update_spectrogram(self, psd) -> None:
         self._add_slice(psd)
+        self.skip_idx += 1
+        if self.skip_idx < self.num_skip:
+            return
+        self.skip_idx = 0
         spectrogram = self._get_spectrogram()
         if self.channel_idx is None:
             spectrogram = np.mean(spectrogram, axis=1)
         else:
             spectrogram = spectrogram[:, self.channel_idx]
 
-
         spectrogram_dB = 10 * np.log10(spectrogram + np.spacing(1.0, dtype=np.float32))
-        self.image.set_array(spectrogram_dB.ravel())
+        self.image.set_array(spectrogram_dB.T.ravel())
 
         self.canvas.draw_idle()
