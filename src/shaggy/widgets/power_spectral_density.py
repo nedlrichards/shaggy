@@ -22,7 +22,6 @@ class PowerSpectralDensityWidget(QWidget):
         num_windows: int = 10,
         window_hop: int = 1,
         channel_idx: int | None = None,
-        show_controls: bool = True,
     ):
         super().__init__()
         self.cfg = cfg
@@ -52,25 +51,6 @@ class PowerSpectralDensityWidget(QWidget):
         layout.addWidget(self.canvas, 1)
 
         self.channel_buttons = None
-        if show_controls:
-            channel_group = QGroupBox("Channel")
-            channel_layout = QVBoxLayout(channel_group)
-            self.channel_buttons = QButtonGroup(channel_group)
-            avg_button = QRadioButton("Average")
-            avg_button.setChecked(channel_idx is None)
-            self.channel_buttons.addButton(avg_button, -1)
-            channel_layout.addWidget(avg_button)
-            for idx in range(self.num_channels):
-                button = QRadioButton(f"Channel {idx}")
-                if channel_idx == idx:
-                    button.setChecked(True)
-                self.channel_buttons.addButton(button, idx)
-                channel_layout.addWidget(button)
-
-            channel_layout.addStretch(1)
-            self.channel_buttons.idClicked.connect(self._set_channel_idx)
-            layout.addWidget(channel_group)
-
         self.worker = PowerSpectralDensity(
             num_windows=num_windows,
             window_hop=window_hop,
@@ -91,10 +71,10 @@ class PowerSpectralDensityWidget(QWidget):
         psd = np.asarray(psd)
         if psd.ndim == 2:
             if self.channel_idx is None:
-                psd = psd.mean(axis=0)
+                psd = psd.mean(axis=-1)
             else:
-                psd = psd[self.channel_idx]
-        psd_dB = 10 * np.log10(psd + np.spacing(1.))
+                psd = psd[:, self.channel_idx]
+        psd_dB = 10 * np.log10(psd + 1e-11)
 
         if self.line is None:
             self.axes.cla()

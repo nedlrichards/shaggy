@@ -48,6 +48,6 @@ class PowerSpectralDensity(QObject):
             return
 
         stft_ensamble = np.array(self.stft_windows[:self.num_windows])
-        psd = np.mean(abs(stft_ensamble) ** 2, axis=0).T
+        psd = np.mean(abs(stft_ensamble) ** 2, axis=0)
 
         self.psd_ready.emit(psd)

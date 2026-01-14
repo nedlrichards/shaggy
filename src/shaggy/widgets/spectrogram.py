@@ -63,25 +63,20 @@ class SpectrogramWidget(QWidget):
         self.worker.psd_ready.connect(self.update_spectrogram)
 
         self.block_size = ceil(self.time_span_s / (self.time_step_s * self.num_blocks))
-        self.block_shape = (self.block_size, self.num_channels, self.f_axis.size)
+        self.block_shape = (self.block_size, self.f_axis.size, self.num_channels)
         self.sample_history = []
         for i in range(self.num_blocks):
-            block = np.full(self.block_shape, -200, dtype=np.float32)
+            block = np.full(self.block_shape, 1e-11, dtype=np.float32)
             self.sample_history.append(block)
 
         self.t_axis = np.arange(self.block_size * self.num_blocks, dtype=np.float32)
         self.t_axis *= self.time_step_s
         self.block_idx = 0
         self.sample_idx = 0
-        initial_spectrogram = np.full(
-            (self.f_axis.size, self.t_axis.size),
-            -200,
-            dtype=np.float32,
-        )
         self.image = self.axes.pcolormesh(
             self.t_axis,
             self.f_axis,
-            initial_spectrogram,
+            self._get_spectrogram(),
             vmin=-60.0,
             vmax=0.0,
             shading="auto",
@@ -108,8 +103,12 @@ class SpectrogramWidget(QWidget):
 
     def _get_spectrogram(self) -> np.array:
         spectrogram = np.array(self.sample_history)
-        spectrogram = np.reshape(spectrogram, (-1, self.num_channels, self.f_axis.size))
-        return spectrogram
+        spectrogram = np.reshape(spectrogram, (-1, self.f_axis.size, self.num_channels))
+        if self.channel_idx is None:
+            spectrogram = np.mean(spectrogram, axis=-1)
+        else:
+            spectrogram = spectrogram[:, self.channel_idx]
+        return spectrogram.T
             
     def set_channel_idx(self, channel_idx: int | None) -> None:
         self.channel_idx = channel_idx
@@ -122,12 +121,8 @@ class SpectrogramWidget(QWidget):
             return
         self.skip_idx = 0
         spectrogram = self._get_spectrogram()
-        if self.channel_idx is None:
-            spectrogram = np.mean(spectrogram, axis=1)
-        else:
-            spectrogram = spectrogram[:, self.channel_idx]
 
-        spectrogram_dB = 10 * np.log10(spectrogram + 1e-8)
-        self.image.set_array(spectrogram_dB.T.ravel())
+        spectrogram_dB = 10 * np.log10(spectrogram + 1e-11)
+        self.image.set_array(spectrogram_dB.ravel())
 
         self.canvas.draw_idle()
