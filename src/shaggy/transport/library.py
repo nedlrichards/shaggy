@@ -17,12 +17,15 @@ class BlockName(str, Enum):
     GStreamerSrc = "gstreamer-src"
     ChannelLevels = "channel-levels"
     ShortTimeFFT = "short-time-fft"
+    Covariance = "covariance"
+    NoiseFloor = "noise-floor"
 
 
 TRANSPORT_TOPICS = {
         BlockName.Heartbeat.value: Command,
         BlockName.ChannelLevels.value: ChannelLevels,
         BlockName.ShortTimeFFT.value: STFT,
+        BlockName.NoiseFloor.value: STFT,
 }
 
 def get_address_from_cfg(cfg):

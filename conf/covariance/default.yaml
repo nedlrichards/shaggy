@@ -1,0 +1,7 @@
+_target_: shaggy.signal.short_time_fft.ShortTimeFFT
+sample_rate: ${acoustic_src.sample_rate}
+num_windows: 10
+window_hop: 3
+
+defaults:
+  - _self_

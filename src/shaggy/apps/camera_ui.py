@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
             CFG,
             self.host_bridge,
             psd_thread_id,
+            thread_id_generator=self.thread_id_generator,
         )
         channels_tab = QWidget()
         channels_layout = QVBoxLayout(channels_tab)

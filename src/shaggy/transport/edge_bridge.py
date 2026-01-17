@@ -21,6 +21,7 @@ class EdgeBridge:
         self.gstreamer_src_id = None
         self.channel_levels_id = None
         self.short_time_fft_id = None
+        self.noise_floor_id = None
 
     def run(self):
 
@@ -75,6 +76,9 @@ class EdgeBridge:
         elif command.block_name == library.BlockName.ShortTimeFFT.value:
             thread_name = self.block_hub.start_short_time_fft(self.gstreamer_src_id, cfg, command.thread_id)
             self.short_time_fft_id = thread_name
+        elif command.block_name == library.BlockName.NoiseFloor.value:
+            thread_name = self.command_handler.start_noise_floor(self.short_time_fft_id, cfg, command.thread_id)
+            self.noise_floor_id = thread_name
 
         pair_socket = self.block_hub.command_pairs[thread_name]
         self._poller.register(pair_socket, zmq.POLLIN)

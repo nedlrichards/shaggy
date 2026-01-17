@@ -18,6 +18,7 @@ class SpectraWidget(QWidget):
         cfg,
         host_bridge,
         thread_id: str,
+        thread_id_generator=None,
         num_windows: int = 1,
         window_hop: int = 1,
     ):
@@ -42,6 +43,7 @@ class SpectraWidget(QWidget):
             cfg,
             host_bridge,
             thread_id,
+            thread_id_generator=thread_id_generator,
             num_windows=num_windows,
             window_hop=window_hop,
         )

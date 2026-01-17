@@ -22,7 +22,6 @@ class ShortTimeFFT:
         """Setup components of streaming STFT computation."""
         self.context = context or zmq.Context.instance()
         self.thread_id = thread_id
-        self.context = context
 
         self.short_time_fft = STFT_Function.from_cfg(cfg)
         self.short_time_fft_buffer = STFTBuffer.from_cfg(cfg)
@@ -50,7 +49,8 @@ class ShortTimeFFT:
         if samples is None:
             return
         stft_samples = self.short_time_fft(samples)
-        self._publish_stft(stft_samples)
+        for sample in list(stft_samples):
+            self._publish_stft(sample[None, ...])
 
     def parse_control(self, timestamp_ns, message):
         self.block.shutdown()
@@ -74,6 +74,7 @@ class ShortTimeFFT:
         sample_buf = sample_buf.tobytes()
         msg.stft_samples = sample_buf
         msg = msg.SerializeToString()
+
 
         self.block.pub_socket.send_string(library.BlockName.ShortTimeFFT.value, zmq.SNDMORE)
         self.block.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)

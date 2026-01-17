@@ -3,7 +3,7 @@ import time
 
 from shaggy.proto.command_pb2 import Command
 
-from shaggy.blocks import channel_levels, gstreamer_src, heartbeat, short_time_fft
+from shaggy.blocks import channel_levels, gstreamer_src, heartbeat, noise_floor, short_time_fft
 from shaggy.transport import library
 
 import zmq
@@ -31,6 +31,10 @@ class BlockHub:
     def start_short_time_fft(self, gstreamer_src_id, cfg, thread_id):
         instance = short_time_fft.ShortTimeFFT(cfg, gstreamer_src_id, thread_id, self.context)
         return self._start_block(instance, library.BlockName.ShortTimeFFT.value, thread_id)
+
+    def start_noise_floor(self, short_time_fft_id, cfg, thread_id):
+        instance = noise_floor.NoiseFloor(cfg, short_time_fft_id, thread_id, self.context)
+        return self._start_block(instance, library.BlockName.NoiseFloor.value, thread_id)
 
     def _start_block(self, instance, block_name, thread_id):
         thread_name = library.get_thread_name(block_name, thread_id)
