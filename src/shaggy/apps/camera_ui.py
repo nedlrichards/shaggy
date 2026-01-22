@@ -1,10 +1,10 @@
 import sys
 import threading
 import click
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QPushButton, QTabWidget, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QTabWidget, QWidget
 
 from shaggy.widgets.channel_levels import AcousticChannels
-from shaggy.widgets.heartbeat_status import HeartbeatStatus
+from shaggy.widgets.camera_status_bar import CameraStatusBar
 from shaggy.widgets.spectra import SpectraWidget
 from shaggy.transport.host_bridge import HostBridge
 from shaggy.transport import library
@@ -26,51 +26,28 @@ class MainWindow(QMainWindow):
 
     def __init__(self, address):
         super().__init__()
-
         self.setGeometry(100, 100, 1400, 800)
+        self.setWindowTitle('Acoustic Camera')
 
-        self.title = 'Acoustic Camera'
-        self.set_title()
-
-        self.path = None
-
-        # status bar
-        self.status_bar = self.statusBar()
-
-        # display the a message in 5 seconds
-        self.status_bar.showMessage('Ready', 5000)
+        self.host_bridge = HostBridge(address)
+        t = threading.Thread(target=self.host_bridge.run, daemon=True)
+        t.start()
+        self.thread_id_generator = ThreadIDGenerator()
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
-
         audio_hbox = QHBoxLayout()
         central_widget.setLayout(audio_hbox)
 
-        # add a permanent widget to the status bar
-        host_bridge = HostBridge(address)
-        t = threading.Thread(target=host_bridge.run, daemon=True)
-        t.start()
-
-        self.thread_id_generator = ThreadIDGenerator()
-        self.host_bridge = host_bridge
-        self.heartbeat_status = HeartbeatStatus(host_bridge)
-        self.heartbeat_status.heartbeat.status.connect(self._on_heartbeat_status)
+        self.status_bar = CameraStatusBar(self.host_bridge, self)
+        self.setStatusBar(self.status_bar)
+        self.status_bar.heartbeat_status.heartbeat.status.connect(self._on_heartbeat_status)
         self.tabs = QTabWidget()
         audio_hbox.addWidget(self.tabs)
         self._tabs_initialized = False
 
-        self.record_button = QPushButton("Record")
-        self.record_button.setCheckable(True)
-        self.record_button.setEnabled(False)
-        self.record_button.clicked.connect(self._toggle_record)
-
-        self.status_bar.addPermanentWidget(self.heartbeat_status)
-        self.status_bar.addPermanentWidget(self.record_button)
+        self.status_bar.record_button.clicked.connect(self._toggle_record)
         self.show()
-
-    def set_title(self, filename=None):
-        title = f"{filename if filename else 'Untitled'} - {self.title}"
-        self.setWindowTitle(title)
 
     def _on_heartbeat_status(self, heartbeat_status: bool) -> None:
         if heartbeat_status and not self._tabs_initialized:
@@ -78,8 +55,7 @@ class MainWindow(QMainWindow):
 
     def _init_tabs(self) -> None:
         self.channel_levels = AcousticChannels(CFG, self.thread_id_generator, self.host_bridge)
-        self.gstreamer_thread_id = self.channel_levels.gstreamer_thread_id
-        self.record_button.setEnabled(True)
+        self.status_bar.record_button.setEnabled(True)
         psd_thread_id = self.thread_id_generator()
         command = Command()
         command.command = "startup"
@@ -100,9 +76,8 @@ class MainWindow(QMainWindow):
         command = Command()
         command.command = "start_record" if checked else "stop_record"
         command.block_name = library.BlockName.GStreamerSrc.value
-        command.thread_id = self.gstreamer_thread_id
+        command.thread_id = self.channel_levels.gstreamer_thread_id
         self.host_bridge.command_hub.send_command(command)
-        self.record_button.setText("Stop" if checked else "Record")
 
 @click.command()
 @click.option('--external', 'address_type', flag_value='external', default='external')
