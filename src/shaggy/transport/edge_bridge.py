@@ -48,8 +48,8 @@ class EdgeBridge:
                 command.ParseFromString(message)
                 if command.command == 'startup':
                     self.startup(command)
-                elif command.command == 'shutdown':
-                    self.shutdown(command)
+                elif command.command == 'startup':
+                    self.record(command)
                 else:
                     self.command_handler.passthrough(command)
             for pair_socket in self.command_handler.command_pairs.values():
@@ -82,3 +82,24 @@ class EdgeBridge:
 
         self.frontend.connect(block_socket)
         self.frontend.setsockopt_string(zmq.SUBSCRIBE, command.block_name)
+
+    def record(self, command):
+        """Setup folders for audio collection and related metadata."""
+        if self.gstreamer_src_id is None:
+            raise ValueError('GStreamer is not initilized')
+        if not os.path.exists(self.base_folder):
+            os.mkdir(self.base_folder)
+
+        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+        utc_string = utc_now.strftime("%Y-%m-%dT%H_%M_%S")
+        save_folder = os.path.join(self.base_folder, utc_string)
+        os.mkdir(save_folder)
+
+        cfg_dict = OmegaConf.to_container(command.cfg, resolve=True)
+        with open(os.path.join(save_folder, "logging_config.json"), "w") as f:
+            json.dump(cfg_dict, f, indent=2)
+        with open(os.path.join(save_folder, "audio_timestamp.txt"), "w") as f:
+            collect_time = datetime.datetime.now(datetime.timezone.utc)
+            f.write(collect_time.strftime("%Y-%m-%dT%H_%M_%S"))
+            f.write(str(int(collect_time.timestamp() * 1e9)))
+            f.write(f"{time.monotonic()}")

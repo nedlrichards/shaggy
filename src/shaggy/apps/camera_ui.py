@@ -1,7 +1,7 @@
 import sys
 import threading
 import click
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QTabWidget, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QPushButton, QTabWidget, QWidget
 
 from shaggy.widgets.channel_levels import AcousticChannels
 from shaggy.widgets.heartbeat_status import HeartbeatStatus
@@ -18,7 +18,7 @@ stft_cfg = {
         'window_spec': "HAMMING",
         'scaling_spec': "psd", 
         }
-CFG = {'gstreamer_src': {'sample_rate': 48000, 'channels': 2}, 'stft': stft_cfg}
+CFG = {'gstreamer_src': {'sample_rate': 48000, 'channels': 8}, 'stft': stft_cfg}
 
 
 
@@ -59,7 +59,13 @@ class MainWindow(QMainWindow):
         audio_hbox.addWidget(self.tabs)
         self._tabs_initialized = False
 
+        self.record_button = QPushButton("Record")
+        self.record_button.setCheckable(True)
+        self.record_button.setEnabled(False)
+        self.record_button.clicked.connect(self._toggle_record)
+
         self.status_bar.addPermanentWidget(self.heartbeat_status)
+        self.status_bar.addPermanentWidget(self.record_button)
         self.show()
 
     def set_title(self, filename=None):
@@ -72,6 +78,8 @@ class MainWindow(QMainWindow):
 
     def _init_tabs(self) -> None:
         self.channel_levels = AcousticChannels(CFG, self.thread_id_generator, self.host_bridge)
+        self.gstreamer_thread_id = self.channel_levels.gstreamer_thread_id
+        self.record_button.setEnabled(True)
         psd_thread_id = self.thread_id_generator()
         command = Command()
         command.command = "startup"
@@ -87,6 +95,14 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.channel_levels, "channels")
         self.tabs.addTab(self.spectra, "specta")
         self._tabs_initialized = True
+
+    def _toggle_record(self, checked: bool) -> None:
+        command = Command()
+        command.command = "start_record" if checked else "stop_record"
+        command.block_name = library.BlockName.GStreamerSrc.value
+        command.thread_id = self.gstreamer_thread_id
+        self.host_bridge.command_hub.send_command(command)
+        self.record_button.setText("Stop" if checked else "Record")
 
 @click.command()
 @click.option('--external', 'address_type', flag_value='external', default='external')

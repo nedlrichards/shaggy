@@ -75,7 +75,8 @@ class STFTBuffer():
 
 
         samples = np.frombuffer(samples, dtype=self.dtype)
-        samples = samples.reshape((num_channels, -1))
+        #samples = samples.reshape((num_channels, -1))
+        samples = samples.reshape((-1, num_channels)).T
         samples = samples.copy()
         samples = torch.from_numpy(samples).to(device=self.device)
 
