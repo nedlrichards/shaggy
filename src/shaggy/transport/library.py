@@ -5,7 +5,7 @@ from shaggy.proto.command_pb2 import Command
 from shaggy.proto.channel_levels_pb2 import ChannelLevels
 from shaggy.proto.stft_pb2 import STFT
 
-EXTERNAL_HOST = "10.1.1.0"
+EXTERNAL_HOST = "10.0.0.10"
 LOCAL_HOST = "127.0.0.1"
 FRONTEND_ADDRESS = 'inproc://bridge'
 

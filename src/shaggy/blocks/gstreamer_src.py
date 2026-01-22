@@ -9,11 +9,16 @@ from gi.repository import Gst  # noqa E402
 
 Gst.init(None)
 from contextlib import contextmanager
+import datetime
+import json
+import pathlib
+import os
 import time
 
-from omegaconf import DictConfig
+from omegaconf import OmegaConf, DictConfig
 import zmq
 
+from shaggy.proto.command_pb2 import Command
 from shaggy.proto.samples_pb2 import Samples
 from shaggy.transport import library
 
@@ -27,8 +32,10 @@ class GStreamerSrc:
         self.num_bytes = num_bytes
         self.context = context
         self.format = f"S{8*num_bytes}LE"
+        self.base_folder = pathlib.Path.home() / "data" / "camera"
         self.pipeline = None
-        self.recordpipe = None
+        self.record_bin = None
+        self.record_pad = None
         self.frame_number = 0
         self.pub_socket = None
         self.control_socket = None
@@ -53,12 +60,13 @@ class GStreamerSrc:
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.bind(library.get_control_socket(self.thread_id))
 
+        #"filesrc location=data/camera/ch1_test.wav ! wavparse"
+        #"audiotestsrc"
         pipeline = (
-                "audiotestsrc"
-                f" ! audio/x-raw, rate={self.rate}, channels={self.num_channels}, format={self.format}"
-                " ! tee name='audio_source'"
+                "alsasrc device=plughw:S18,0"
                 " ! audioconvert"
                 f" ! audio/x-raw, rate={self.rate}, channels={self.num_channels}, format=F32LE"
+                " ! tee name=audio_source"
                 " ! appsink name=audio_sink emit-signals=true"
                 )
         pipeline = Gst.parse_launch(pipeline)
@@ -75,20 +83,6 @@ class GStreamerSrc:
             self.pub_socket.close(0)
             self.control_socket.close(0)
 
-    def run(self):
-        with self.start_audio() as pipeline:
-            poller = zmq.Poller()
-            poller.register(self.control_socket, zmq.POLLIN)
-            self.run_loop = True
-            while self.run_loop:
-                socks = dict(poller.poll())
-                if socks.get(self.control_socket) == zmq.POLLIN:
-                    message = self.control_socket.recv()
-                    self.parse_control(message)
-
-    def parse_control(self, message):
-        self.run_loop = False
-
     def _on_gstreamer_audio_sample(self, sink):
         """Call on audio sample."""
         sample = sink.emit("pull-sample")
@@ -97,12 +91,12 @@ class GStreamerSrc:
             result, map_info = buffer.map(Gst.MapFlags.READ)
             if result:
                 try:
-                    self.audio_callback(map_info.data)
+                    self._audio_callback(map_info.data)
                 finally:
                     buffer.unmap(map_info)
         return Gst.FlowReturn.OK
 
-    def audio_callback(self, data) -> None:
+    def _audio_callback(self, data) -> None:
         """Publish data from acoustic source over 0MQ."""
         self.pub_socket.send_string(library.BlockName.GStreamerSrc.value, zmq.SNDMORE)
         timestamp_ns = time.monotonic_ns()
@@ -115,3 +109,68 @@ class GStreamerSrc:
         self.pub_socket.send_multipart([msg.SerializeToString()])
 
         self.frame_number += 1
+
+    def start_record(self, pipeline, command) -> None:
+        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+        utc_string = utc_now.strftime("%Y-%m-%dT%H_%M_%S")
+        save_folder = self.base_folder / utc_string
+        save_folder.mkdir(parents=True, exist_ok=True)
+
+        with open(os.path.join(save_folder, "logging_config.json"), "w") as f:
+            json.dump(command.config, f, indent=2)
+        with open(os.path.join(save_folder, "audio_timestamp.txt"), "w") as f:
+            collect_time = datetime.datetime.now(datetime.timezone.utc)
+            f.write(collect_time.strftime("%Y-%m-%dT%H_%M_%S"))
+            f.write(str(int(collect_time.timestamp() * 1e9)))
+            f.write(f"{time.monotonic()}")
+
+        bin_str = (
+                    "queue ! audioconvert ! wavenc"
+                    f"! filesink location={save_folder}/audio.wav"
+            )
+        self.record_bin = Gst.parse_bin_from_description(bin_str, True,)
+
+        tee = pipeline.get_by_name("audio_source")
+        record_sink_pad = self.record_bin.get_static_pad("sink")
+        self.record_pad = tee.get_request_pad("src_%u")
+        pipeline.set_state(Gst.State.PAUSED)
+        pipeline.add(self.record_bin)
+        self.record_pad.link(record_sink_pad)
+        pipeline.set_state(Gst.State.PLAYING)
+
+    def stop_record(self, pipeline):
+        """Stop recording."""
+        if not self.record_bin:
+            return
+        pipeline.set_state(Gst.State.PAUSED)
+
+        self.record_pad.unlink(self.record_bin.get_static_pad("sink"))
+        pipeline.get_by_name("audio_source").release_request_pad(self.record_pad)
+        self.record_pad = None
+
+        self.record_bin.set_state(Gst.State.NULL)
+        pipeline.remove(self.record_bin)
+        self.record_bin = None
+
+        pipeline.set_state(Gst.State.PLAYING)
+
+    def run(self):
+        with self.start_audio() as pipeline:
+            poller = zmq.Poller()
+            poller.register(self.control_socket, zmq.POLLIN)
+            self.run_loop = True
+            while self.run_loop:
+                socks = dict(poller.poll())
+                if socks.get(self.control_socket) == zmq.POLLIN:
+                    _, message = self.control_socket.recv_multipart()
+                    self.parse_control(message, pipeline)
+
+    def parse_control(self, message, pipeline):
+        command = Command()
+        command.ParseFromString(message)
+        if command.command == 'shutdown':
+            self.run_loop = False
+        elif command.command == 'start-record':
+            self.start_record(pipeline, command)
+        elif command.command == 'stop-record':
+            self.stop_record(pipeline)

@@ -44,7 +44,6 @@ class SpectraWidget(QWidget):
             thread_id,
             num_windows=num_windows,
             window_hop=window_hop,
-            channel_idx=None,
         )
         plots_layout.addWidget(self.spectrogram)
         plots_layout.addWidget(self.power_spectral_density)
@@ -58,7 +57,7 @@ class SpectraWidget(QWidget):
         self.channel_buttons.addButton(avg_button, -1)
         channel_layout.addWidget(avg_button)
         for idx in range(self.num_channels):
-            button = QRadioButton(f"Channel {idx}")
+            button = QRadioButton(f"Channel {idx+1}")
             self.channel_buttons.addButton(button, idx)
             channel_layout.addWidget(button)
         channel_layout.addStretch(1)

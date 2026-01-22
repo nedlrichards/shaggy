@@ -63,7 +63,7 @@ class PowerSpectralDensityWidget(QWidget):
             self.axes.cla()
             self.line, = self.axes.semilogx(self.f_axis[1:], psd_dB[1:])
             self.axes.set_xlim(10.0, self.f_axis[-1])
-            self.axes.set_ylim(-80.0, 0.)
+            self.axes.set_ylim(-110.0, -50.)
         else:
             self.line.set_ydata(psd_dB[1:])
         self.canvas.draw_idle()

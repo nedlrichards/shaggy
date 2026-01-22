@@ -34,12 +34,14 @@ class SpectrogramWidget(QWidget):
         self.time_span_s = time_span_s
         self.num_blocks = num_blocks
         self.channel_idx = None
+        self.f_bounds = (0, 1000)
 
         self.sample_rate = cfg["gstreamer_src"]["sample_rate"]
         self.num_channels = cfg["gstreamer_src"]["channels"]
         num_freq = cfg["stft"]["window_length"] // 2 + 1
         f_axis = np.arange(num_freq) / cfg["stft"]["window_length"]
         self.f_axis = (f_axis * self.sample_rate)
+        self.f_idx = (self.f_axis > self.f_bounds[0]) & (self.f_axis < self.f_bounds[1])
         self.time_step_s = cfg["stft"]["stride_length"] * self.window_hop / self.sample_rate
 
         self.figure = Figure()
@@ -75,15 +77,15 @@ class SpectrogramWidget(QWidget):
         self.sample_idx = 0
         self.image = self.axes.pcolormesh(
             self.t_axis,
-            self.f_axis,
-            self._get_spectrogram(),
-            vmin=-60.0,
-            vmax=0.0,
+            self.f_axis[self.f_idx],
+            self._get_spectrogram()[self.f_idx],
+            vmin=-100.0,
+            vmax=-50.0,
             shading="auto",
             cmap=CMAP,
         )
-        self.axes.set_ylim(self.f_axis[0], 1000)
-        self.num_skip = 10
+        self.figure.colorbar(self.image)
+        self.num_skip = 5
         self.skip_idx = 0
 
     def _add_slice(self, psd) -> None:
@@ -107,7 +109,7 @@ class SpectrogramWidget(QWidget):
         if self.channel_idx is None:
             spectrogram = np.mean(spectrogram, axis=-1)
         else:
-            spectrogram = spectrogram[:, self.channel_idx]
+            spectrogram = spectrogram[:, :, self.channel_idx]
         return spectrogram.T
             
     def set_channel_idx(self, channel_idx: int | None) -> None:
@@ -123,6 +125,7 @@ class SpectrogramWidget(QWidget):
         spectrogram = self._get_spectrogram()
 
         spectrogram_dB = 10 * np.log10(spectrogram + 1e-11)
+        spectrogram_dB = spectrogram_dB[self.f_idx]
         self.image.set_array(spectrogram_dB.ravel())
 
         self.canvas.draw_idle()

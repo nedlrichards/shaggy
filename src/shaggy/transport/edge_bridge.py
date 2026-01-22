@@ -48,10 +48,9 @@ class EdgeBridge:
                 command.ParseFromString(message)
                 if command.command == 'startup':
                     self.startup(command)
-                elif command.command == 'shutdown':
-                    self.shutdown(command)
                 else:
                     self.command_handler.passthrough(command)
+
             for pair_socket in self.command_handler.command_pairs.values():
                 if socks.get(pair_socket) == zmq.POLLIN:
                     timestamp, message = pair_socket.recv_multipart()
