@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
 
     def _toggle_record(self, checked: bool) -> None:
         command = Command()
-        command.command = "start_record" if checked else "stop_record"
+        command.command = "start-record" if checked else "stop-record"
         command.block_name = library.BlockName.GStreamerSrc.value
         command.thread_id = self.channel_levels.gstreamer_thread_id
         self.host_bridge.command_hub.send_command(command)

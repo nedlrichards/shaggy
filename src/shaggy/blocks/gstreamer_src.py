@@ -10,10 +10,12 @@ from gi.repository import Gst  # noqa E402
 Gst.init(None)
 from contextlib import contextmanager
 import datetime
+import json
+import pathlib
 import os
 import time
 
-from omegaconf import DictConfig
+from omegaconf import OmegaConf, DictConfig
 import zmq
 
 from shaggy.proto.command_pb2 import Command
@@ -30,6 +32,7 @@ class GStreamerSrc:
         self.num_bytes = num_bytes
         self.context = context
         self.format = f"S{8*num_bytes}LE"
+        self.base_folder = pathlib.Path.home() / "data" / "camera"
         self.pipeline = None
         self.record_bin = None
         self.record_pad = None
@@ -80,13 +83,50 @@ class GStreamerSrc:
             self.pub_socket.close(0)
             self.control_socket.close(0)
 
-    def record_audio(self, pipeline) -> None:
-        os.makedirs("data/camera", exist_ok=True)
+    def _on_gstreamer_audio_sample(self, sink):
+        """Call on audio sample."""
+        sample = sink.emit("pull-sample")
+        if sample:
+            buffer = sample.get_buffer()
+            result, map_info = buffer.map(Gst.MapFlags.READ)
+            if result:
+                try:
+                    self._audio_callback(map_info.data)
+                finally:
+                    buffer.unmap(map_info)
+        return Gst.FlowReturn.OK
+
+    def _audio_callback(self, data) -> None:
+        """Publish data from acoustic source over 0MQ."""
+        self.pub_socket.send_string(library.BlockName.GStreamerSrc.value, zmq.SNDMORE)
+        timestamp_ns = time.monotonic_ns()
+        self.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
+        msg = Samples()
+        msg.frame_number = self.frame_number
+        msg.num_samples_0 = len(data) // (4 * self.num_channels)
+        msg.num_channels_1 = self.num_channels
+        msg.samples = data
+        self.pub_socket.send_multipart([msg.SerializeToString()])
+
+        self.frame_number += 1
+
+    def start_record(self, pipeline, command) -> None:
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         utc_string = utc_now.strftime("%Y-%m-%dT%H_%M_%S")
+        save_folder = self.base_folder / utc_string
+        save_folder.mkdir(parents=True, exist_ok=True)
+
+        with open(os.path.join(save_folder, "logging_config.json"), "w") as f:
+            json.dump(command.config, f, indent=2)
+        with open(os.path.join(save_folder, "audio_timestamp.txt"), "w") as f:
+            collect_time = datetime.datetime.now(datetime.timezone.utc)
+            f.write(collect_time.strftime("%Y-%m-%dT%H_%M_%S"))
+            f.write(str(int(collect_time.timestamp() * 1e9)))
+            f.write(f"{time.monotonic()}")
+
         bin_str = (
                     "queue ! audioconvert ! wavenc"
-                    f"! filesink location=data/camera/{utc_string}.wav"
+                    f"! filesink location={save_folder}/audio.wav"
             )
         self.record_bin = Gst.parse_bin_from_description(bin_str, True,)
 
@@ -98,7 +138,7 @@ class GStreamerSrc:
         self.record_pad.link(record_sink_pad)
         pipeline.set_state(Gst.State.PLAYING)
 
-    def stop_record_audio(self, pipeline):
+    def stop_record(self, pipeline):
         """Stop recording."""
         if not self.record_bin:
             return
@@ -130,35 +170,7 @@ class GStreamerSrc:
         command.ParseFromString(message)
         if command.command == 'shutdown':
             self.run_loop = False
-        elif command.command == 'start_record':
-            self.record_audio(pipeline)
-        elif command.command == 'stop_record':
-            self.stop_record_audio(pipeline)
-
-
-    def _on_gstreamer_audio_sample(self, sink):
-        """Call on audio sample."""
-        sample = sink.emit("pull-sample")
-        if sample:
-            buffer = sample.get_buffer()
-            result, map_info = buffer.map(Gst.MapFlags.READ)
-            if result:
-                try:
-                    self.audio_callback(map_info.data)
-                finally:
-                    buffer.unmap(map_info)
-        return Gst.FlowReturn.OK
-
-    def audio_callback(self, data) -> None:
-        """Publish data from acoustic source over 0MQ."""
-        self.pub_socket.send_string(library.BlockName.GStreamerSrc.value, zmq.SNDMORE)
-        timestamp_ns = time.monotonic_ns()
-        self.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
-        msg = Samples()
-        msg.frame_number = self.frame_number
-        msg.num_samples_0 = len(data) // (4 * self.num_channels)
-        msg.num_channels_1 = self.num_channels
-        msg.samples = data
-        self.pub_socket.send_multipart([msg.SerializeToString()])
-
-        self.frame_number += 1
+        elif command.command == 'start-record':
+            self.start_record(pipeline, command)
+        elif command.command == 'stop-record':
+            self.stop_record(pipeline)
