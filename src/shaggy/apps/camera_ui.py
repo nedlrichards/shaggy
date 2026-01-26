@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
         command.thread_id = psd_thread_id
         command.block_name = library.BlockName.ShortTimeFFT.value
         command.config = OmegaConf.to_yaml(CFG)
-        self.host_bridge.command_hub.add_worker(command)
+        self.host_bridge.worker_hub.add_worker(command)
         self.spectra = SpectraWidget(
             CFG,
             self.host_bridge,
@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         command.command = "start-record" if checked else "stop-record"
         command.block_name = library.BlockName.GStreamerSrc.value
         command.thread_id = self.channel_levels.gstreamer_thread_id
-        self.host_bridge.command_hub.send_command(command)
+        self.host_bridge.worker_hub.send_command(command)
 
 @click.command()
 @click.option('--external', 'address_type', flag_value='external', default='external')

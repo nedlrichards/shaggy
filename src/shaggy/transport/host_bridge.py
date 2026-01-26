@@ -11,8 +11,8 @@ class HostBridge:
         self.context = context or zmq.Context.instance()
 
         self.frontend = self.context.socket(zmq.SUB)
-        self.command_hub = WorkerHub(self.address, self.context)
-        self.command_hub.start()
+        self.worker_hub = WorkerHub(self.address, self.context)
+        self.worker_hub.start()
 
     def run(self):
         self.frontend.connect(library.get_bridge_connection(self.address))
@@ -26,4 +26,4 @@ class HostBridge:
             socks = dict(self._poller.poll())
             if socks.get(self.frontend) == zmq.POLLIN:
                 topic, timestamp, message = self.frontend.recv_multipart()
-                self.command_hub.handle_transport_message(topic, timestamp, message)
+                self.worker_hub.handle_transport_message(topic, timestamp, message)
