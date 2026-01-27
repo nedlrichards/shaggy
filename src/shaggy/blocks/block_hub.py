@@ -21,7 +21,7 @@ class BlockHub:
         return self._start_block(instance, library.BlockName.Heartbeat.value, thread_id)
 
     def start_gstreamer_src(self, cfg, thread_id):
-        instance = gstreamer_src.GStreamerSrc.from_cfg(cfg, thread_id, self.context)
+        instance = gstreamer_src.GStreamerSrc.from_cfg(cfg, thread_id, self.context, self.address)
         return self._start_block(instance, library.BlockName.GStreamerSrc.value, thread_id)
 
     def start_channel_levels(self, gstreamer_src_id, cfg, thread_id):

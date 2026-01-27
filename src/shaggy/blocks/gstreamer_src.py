@@ -25,12 +25,13 @@ from shaggy.transport import library
 class GStreamerSrc:
     """Stream audio from interface to local buffer."""
 
-    def __init__(self, thread_id: str, rate, num_channels, context, num_bytes=4) -> Self:
+    def __init__(self, thread_id: str, rate, num_channels, context, address: str, num_bytes=4) -> Self:
         self.thread_id = thread_id
         self.rate = rate
         self.num_channels = num_channels
         self.num_bytes = num_bytes
         self.context = context
+        self.address = address
         self.format = f"S{8*num_bytes}LE"
         self.base_folder = pathlib.Path.home() / "data" / "camera"
         self.pipeline = None
@@ -42,13 +43,14 @@ class GStreamerSrc:
         self.run_loop = True
 
     @classmethod
-    def from_cfg(cls, cfg: DictConfig, thread_id: str, context: zmq.Context = None) -> Self:
+    def from_cfg(cls, cfg: DictConfig, thread_id: str, address: str, context: zmq.Context = None) -> Self:
         context = context or zmq.Context.instance()
         return cls(
                 thread_id=thread_id,
                 rate=cfg['gstreamer_src']['sample_rate'],
                 num_channels=cfg['gstreamer_src']['channels'],
                 context = context,
+                address = address,
                 )
  
     @contextmanager
@@ -60,14 +62,18 @@ class GStreamerSrc:
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.bind(library.get_control_socket(self.thread_id))
 
-        #"filesrc location=data/camera/ch1_test.wav ! wavparse"
-        #"audiotestsrc"
         pipeline = (
-                "alsasrc device=plughw:S18,0"
-                " ! audioconvert"
+                "    alsasrc device=plughw:S18,0"
+                "  ! audioconvert"
                 f" ! audio/x-raw, rate={self.rate}, channels={self.num_channels}, format=F32LE"
-                " ! tee name=audio_source"
-                " ! appsink name=audio_sink emit-signals=true"
+                "  ! tee name=audio_source"
+                " audio_source. ! queue ! appsink name=audio_sink emit-signals=true"
+                " videotestsrc is-live=true"
+                "  ! video/x-raw,framerate=15/1"
+                "  ! x264enc speed-preset=veryfast tune=zerolatency"
+                "  ! h264parse"
+                "  ! rtph264pay"
+                f" ! udpsink host={self.address} port=51234"
                 )
         pipeline = Gst.parse_launch(pipeline)
         assert pipeline
@@ -103,7 +109,7 @@ class GStreamerSrc:
         self.pub_socket.send_string(f"{time.monotonic_ns()}", zmq.SNDMORE)
         msg = Samples()
         msg.frame_number = self.frame_number
-        msg.num_samples_0 = len(data) // (4 * self.num_channels)
+        msg.num_samples_0 = len(data) // (self.num_bytes * self.num_channels)
         msg.num_channels_1 = self.num_channels
         msg.samples = data
         self.pub_socket.send_multipart([msg.SerializeToString()])
