@@ -25,13 +25,13 @@ from shaggy.transport import library
 class GStreamerSrc:
     """Stream audio from interface to local buffer."""
 
-    def __init__(self, thread_id: str, rate, num_channels, context, address: str, num_bytes=4) -> Self:
+    def __init__(self, thread_id: str, rate, num_channels, address: str, context: zmq.Context = None, num_bytes=4) -> Self:
         self.thread_id = thread_id
         self.rate = rate
         self.num_channels = num_channels
         self.num_bytes = num_bytes
-        self.context = context
         self.address = address
+        self.context = context
         self.format = f"S{8*num_bytes}LE"
         self.base_folder = pathlib.Path.home() / "data" / "camera"
         self.pipeline = None
@@ -43,14 +43,14 @@ class GStreamerSrc:
         self.run_loop = True
 
     @classmethod
-    def from_cfg(cls, cfg: DictConfig, thread_id: str, context: zmq.Context = None, address: str) -> Self:
+    def from_cfg(cls, cfg: DictConfig, thread_id: str, address: str, context: zmq.Context = None) -> Self:
         context = context or zmq.Context.instance()
         return cls(
                 thread_id=thread_id,
                 rate=cfg['gstreamer_src']['sample_rate'],
                 num_channels=cfg['gstreamer_src']['channels'],
-                context = context,
                 address = address,
+                context = context,
                 )
  
     @contextmanager
