@@ -62,7 +62,7 @@ class GStreamerSrc:
         )
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.bind(library.get_control_socket(self.thread_id))
-        udp_address = library.local_host if self.address == library.local_host else library.external_host
+        udp_address = library.LOCAL_HOST if self.address == library.LOCAL_HOST else library.EXTERNAL_HOST
 
         pipeline = (
                 "    alsasrc device=plughw:S18,0"
