@@ -12,7 +12,7 @@ Gst.init(None)
 class CameraDisplay(QWidget):
     def __init__(self, port: int = 51234) -> None:
         super().__init__()
-        self._port = port
+        self.port = port
         self._pipeline = None
 
         self.setAttribute(Qt.WA_NativeWindow, True)
@@ -23,7 +23,7 @@ class CameraDisplay(QWidget):
 
         src_caps = "application/x-rtp, media=video, encoding-name=H264, payload=96"
         pipeline_str = (
-            f'udpsrc port={self._port} caps="{src_caps}"'
+            f'udpsrc port={self.port} caps="{src_caps}"'
             " ! rtph264depay ! avdec_h264 ! videoconvert"
             " ! xvimagesink name=video_sink sync=false"
         )

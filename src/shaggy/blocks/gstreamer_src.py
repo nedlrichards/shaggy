@@ -32,6 +32,7 @@ class GStreamerSrc:
         self.num_bytes = num_bytes
         self.address = address
         self.context = context
+        self.port = 51234
         self.format = f"S{8*num_bytes}LE"
         self.base_folder = pathlib.Path.home() / "data" / "camera"
         self.pipeline = None
@@ -61,6 +62,7 @@ class GStreamerSrc:
         )
         self.control_socket = self.context.socket(zmq.PAIR)
         self.control_socket.bind(library.get_control_socket(self.thread_id))
+        udp_address = library.local_host if self.address == library.local_host else library.external_host
 
         pipeline = (
                 "    alsasrc device=plughw:S18,0"
@@ -73,7 +75,7 @@ class GStreamerSrc:
                 "  ! x264enc speed-preset=veryfast tune=zerolatency"
                 "  ! h264parse"
                 "  ! rtph264pay"
-                f" ! udpsink host={self.address} port=51234"
+                f" ! udpsink host={udp_address} port={self.port}"
                 )
         pipeline = Gst.parse_launch(pipeline)
         assert pipeline
