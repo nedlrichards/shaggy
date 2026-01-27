@@ -43,7 +43,7 @@ class GStreamerSrc:
         self.run_loop = True
 
     @classmethod
-    def from_cfg(cls, cfg: DictConfig, thread_id: str, address: str, context: zmq.Context = None) -> Self:
+    def from_cfg(cls, cfg: DictConfig, thread_id: str, context: zmq.Context = None, address: str) -> Self:
         context = context or zmq.Context.instance()
         return cls(
                 thread_id=thread_id,
