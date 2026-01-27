@@ -22,7 +22,7 @@ class PowerSpectralDensity(QObject):
         self.window_hop = window_hop
         self.host_bridge = host_bridge
         self.thread_id = thread_id
-        self.worker = self.host_bridge.command_hub.get_worker(
+        self.worker = self.host_bridge.worker_hub.get_worker(
             library.BlockName.ShortTimeFFT.value,
             self.thread_id,
         )

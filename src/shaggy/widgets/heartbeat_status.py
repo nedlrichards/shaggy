@@ -13,7 +13,7 @@ class HeartbeatStatus(QWidget):
         command = Command()
         command.command = 'startup'
         command.block_name = library.BlockName.Heartbeat.value
-        self.host_bridge.command_hub.add_worker(command)
+        self.host_bridge.worker_hub.add_worker(command)
 
         self.heartbeat_indicator = QLabel("Heartbeat")
         self.heartbeat_indicator.setStyleSheet("""background-color: #FF0000; """)

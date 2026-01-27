@@ -76,7 +76,7 @@ class AcousticChannels(QWidget):
         command.thread_id = self.gstreamer_thread_id
         command.block_name = library.BlockName.GStreamerSrc.value
         command.config = yaml_cfg
-        self.host_bridge.command_hub.add_worker(command)
+        self.host_bridge.worker_hub.add_worker(command)
 
         self.channel_levels_thread_id = thread_id_generator()
         command = Command()
@@ -84,8 +84,8 @@ class AcousticChannels(QWidget):
         command.thread_id = self.channel_levels_thread_id
         command.block_name = library.BlockName.ChannelLevels.value
         command.config = yaml_cfg
-        self.host_bridge.command_hub.add_worker(command)
-        self.worker = self.host_bridge.command_hub.get_worker(
+        self.host_bridge.worker_hub.add_worker(command)
+        self.worker = self.host_bridge.worker_hub.get_worker(
             library.BlockName.ChannelLevels.value,
             self.channel_levels_thread_id,
         )

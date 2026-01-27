@@ -5,7 +5,8 @@ from shaggy.proto.command_pb2 import Command
 from shaggy.proto.channel_levels_pb2 import ChannelLevels
 from shaggy.proto.stft_pb2 import STFT
 
-EXTERNAL_HOST = "10.0.0.10"
+EXTERNAL_HOST = "10.0.0.15"
+EXTERNAL_EDGE = "10.0.0.10"
 LOCAL_HOST = "127.0.0.1"
 FRONTEND_ADDRESS = 'inproc://bridge'
 
@@ -30,7 +31,7 @@ def get_address_from_cfg(cfg):
 
 def get_address(address_type):
     if address_type == 'external':
-        address = EXTERNAL_HOST
+        address = EXTERNAL_EDGE
     elif address_type == 'local':
         address = LOCAL_HOST
     else:

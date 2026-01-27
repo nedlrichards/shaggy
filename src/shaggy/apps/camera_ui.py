@@ -1,9 +1,10 @@
 import sys
 import threading
 import click
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QTabWidget, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QTabWidget, QWidget, QVBoxLayout
 
 from shaggy.widgets.channel_levels import AcousticChannels
+from shaggy.widgets.camera_display import CameraDisplay
 from shaggy.widgets.camera_status_bar import CameraStatusBar
 from shaggy.widgets.spectra import SpectraWidget
 from shaggy.transport.host_bridge import HostBridge
@@ -12,6 +13,7 @@ from shaggy.transport.thread_id_generator import ThreadIDGenerator
 
 from shaggy.proto.command_pb2 import Command
 from omegaconf import OmegaConf
+
 stft_cfg = {
         'window_length': 12000,
         'stride_length': 6000,
@@ -54,21 +56,28 @@ class MainWindow(QMainWindow):
             self._init_tabs()
 
     def _init_tabs(self) -> None:
+        self.camera_display = CameraDisplay()
         self.channel_levels = AcousticChannels(CFG, self.thread_id_generator, self.host_bridge)
         self.status_bar.record_button.setEnabled(True)
+
         psd_thread_id = self.thread_id_generator()
         command = Command()
         command.command = "startup"
         command.thread_id = psd_thread_id
         command.block_name = library.BlockName.ShortTimeFFT.value
         command.config = OmegaConf.to_yaml(CFG)
-        self.host_bridge.command_hub.add_worker(command)
+        self.host_bridge.worker_hub.add_worker(command)
         self.spectra = SpectraWidget(
             CFG,
             self.host_bridge,
             psd_thread_id,
         )
-        self.tabs.addTab(self.channel_levels, "channels")
+        channels_tab = QWidget()
+        channels_layout = QVBoxLayout(channels_tab)
+        channels_layout.setContentsMargins(0, 0, 0, 0)
+        channels_layout.addWidget(self.camera_display, stretch=7)
+        channels_layout.addWidget(self.channel_levels, stretch=1)
+        self.tabs.addTab(channels_tab, "channels")
         self.tabs.addTab(self.spectra, "specta")
         self._tabs_initialized = True
 
@@ -77,7 +86,7 @@ class MainWindow(QMainWindow):
         command.command = "start-record" if checked else "stop-record"
         command.block_name = library.BlockName.GStreamerSrc.value
         command.thread_id = self.channel_levels.gstreamer_thread_id
-        self.host_bridge.command_hub.send_command(command)
+        self.host_bridge.worker_hub.send_command(command)
 
 @click.command()
 @click.option('--external', 'address_type', flag_value='external', default='external')

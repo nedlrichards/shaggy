@@ -14,7 +14,7 @@ class EdgeBridge:
         self.command_socket = self.context.socket(zmq.PAIR)
         self.frontend = self.context.socket(zmq.SUB)
         self.backend = self.context.socket(zmq.PUB)
-        self.command_handler = BlockHub(address, self.context)
+        self.block_hub = BlockHub(address, self.context)
         self._poller = None
 
         self.heartbeat_id = None
@@ -49,34 +49,34 @@ class EdgeBridge:
                 if command.command == 'startup':
                     self.startup(command)
                 else:
-                    self.command_handler.passthrough(command)
+                    self.block_hub.passthrough(command)
 
-            for pair_socket in self.command_handler.command_pairs.values():
+            for pair_socket in self.block_hub.command_pairs.values():
                 if socks.get(pair_socket) == zmq.POLLIN:
                     timestamp, message = pair_socket.recv_multipart()
                     command = Command()
                     command.ParseFromString(message)
                     if command.command == 'shutdown':
-                        self.command_handler.shutdown(command)
+                        self.block_hub.shutdown(command)
 
     def startup(self, command):
         block_socket = library.get_block_socket(command.block_name, command.thread_id)
         cfg = OmegaConf.create(command.config)
 
         if command.block_name == library.BlockName.Heartbeat.value:
-            thread_name = self.command_handler.start_heartbeat("")
+            thread_name = self.block_hub.start_heartbeat("")
             self.heartbeat_id = thread_name
         elif command.block_name == library.BlockName.GStreamerSrc.value:
-            thread_name = self.command_handler.start_gstreamer_src(cfg, command.thread_id)
+            thread_name = self.block_hub.start_gstreamer_src(cfg, command.thread_id)
             self.gstreamer_src_id = thread_name
         elif command.block_name == library.BlockName.ChannelLevels.value:
-            thread_name = self.command_handler.start_channel_levels(self.gstreamer_src_id, cfg, command.thread_id)
+            thread_name = self.block_hub.start_channel_levels(self.gstreamer_src_id, cfg, command.thread_id)
             self.channel_levels_id = thread_name
         elif command.block_name == library.BlockName.ShortTimeFFT.value:
-            thread_name = self.command_handler.start_short_time_fft(self.gstreamer_src_id, cfg, command.thread_id)
+            thread_name = self.block_hub.start_short_time_fft(self.gstreamer_src_id, cfg, command.thread_id)
             self.short_time_fft_id = thread_name
 
-        pair_socket = self.command_handler.command_pairs[thread_name]
+        pair_socket = self.block_hub.command_pairs[thread_name]
         self._poller.register(pair_socket, zmq.POLLIN)
 
         self.frontend.connect(block_socket)

@@ -23,7 +23,7 @@ class Heartbeat(QObject):
         self.timeout_timer.setInterval(int(self.timeout_s * 1000))
         self.timeout_timer.timeout.connect(self._emit_timeout)
         self.timeout_timer.start()
-        self.worker = self.host_bridge.command_hub.get_worker(
+        self.worker = self.host_bridge.worker_hub.get_worker(
             library.BlockName.Heartbeat.value,
             None,
         )
@@ -35,7 +35,7 @@ class Heartbeat(QObject):
         command.ParseFromString(msg)
         command.ack = True
 
-        self.host_bridge.command_hub.send_command(command)
+        self.host_bridge.worker_hub.send_command(command)
         self.status.emit(True)
         self.timeout_timer.start()
 
