@@ -17,24 +17,22 @@ from shaggy.signal.short_time_fft import ShortTimeFFT as STFT_Function
 from shaggy.transport import library
 
 class Covariance(torch.nn.Module):
-    def __init__(self, num_windows: int, window_hop: int, device="cpu"):
+    def __init__(self, num_windows: int, window_hop: int):
         super().__init__()
         self.num_windows = num_windows
         self.window_hop = window_hop
         self.frame_number = 0
         self.stft_samples = []
-        self.device = device
 
     def forward(self, stft_samples: torch.Tensor):
         stft_samples = list(stft_samples)
         self.stft_samples += stft_samples
-        covariance_result = []
 
+        covariance_result = []
         while len(self.stft_samples) >= self.num_windows:
             if self.frame_number == 0:
                 covariance = self._compute_covariance(self.stft_samples[:self.num_windows])
                 covariance_result.append(covariance)
-
             self.stft_samples = self.stft_samples[1:]
             self.frame_number = (self.frame_number + 1) % self.window_hop
 
@@ -47,7 +45,5 @@ class Covariance(torch.nn.Module):
 
     def _compute_covariance(self, stft_samples):
         samples = torch.stack(stft_samples, dim=0)
-        if self.device == "cuda":
-            samples = samples.to("cuda", non_blocking=True)
         covariance = torch.einsum("ijk,ijl->jkl", samples, samples.conj())
         return covariance

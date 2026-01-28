@@ -1,5 +1,4 @@
 """Power spectrum density noise floor estimate."""
-
 import torch
 from torch import Tensor
 
@@ -7,13 +6,13 @@ from torch import Tensor
 class NoiseFloor(torch.nn.Module):
     """Estimate noise floor of power spectrum."""
 
-    def __init__(self, f_axis, num_sections=10):
+    def __init__(self, f_axis: Tensor, num_sections=10):
         """Setup."""
         super().__init__()
-        self.f_axis = f_axis
+        self.register_buffer("f_axis", f_axis)
         self.num_sections = num_sections
 
-    def fit_noise(self, covariance: Tensor):
+    def forward(self, covariance: Tensor) -> Tensor:
         """Add short time fft to power estimate."""
         psd = torch.einsum('jii->ji', covariance).real
         log_f = torch.log10(self.f_axis)
